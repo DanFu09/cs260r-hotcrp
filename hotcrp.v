@@ -3,8 +3,11 @@ Require Import Recdef.
 Require Import Program.Tactics.
 Import ListNotations.
 
+(*  Overall architecture:
+     *)
+
 Inductive user : Set :=
-| User: forall (id:nat) (email:string) (team:nat), user.
+| User: forall (id:nat) (email:string) (teams:list nat), user.
 Hint Constructors user.
 
 Inductive paper : Set :=
@@ -67,8 +70,9 @@ Section SQL.
     filter (fun p => sql_query_func q p) db.
 
   (* Some test cases. *)
-  Definition testdb := [(Paper 0 "0" 0 0);(Paper 1 "hi" 0 0);(Paper 2 "yo" 0 0);
-                        (Paper 3 "naw" 2 0);(Paper 4 "P=NP" 2 1)].
+  Definition testdb := [(Paper 0 "0" 0 0);(Paper 1 "hi" 0 0);(Paper 2 "yo" 0 1);
+                        (Paper 3 "naw" 2 0);(Paper 4 "P=NP" 2 1);
+                        (Paper 6 "hotcrp" 3 2)].
   Definition team0query := (Paper_team 0).
   Definition team2query := (Paper_team 2).
   Definition decision1query := (Paper_decision 1).
@@ -81,14 +85,25 @@ End SQL.
 
 Section Policy.
   (* Scrub out the decision and put 0 in *)
-  Fixpoint policy_map (p:paper) : paper :=
-  match p with
-  | Paper p_id p_title p_team p_decision =>
-    Paper p_id p_title p_team 0
+  Fixpoint policy_map (p:paper) (u:user) : paper :=
+  match u with
+  | User _ _ u_teams => 
+    match p with
+    | Paper p_id p_title p_team p_decision =>
+      if in_dec eq_nat_dec p_team u_teams then Paper p_id p_title p_team 0 else p
+    end
   end.
 
-  Definition policy_scrub db : database :=
-    map policy_map db.
+  Definition policy_scrub u db : database :=
+    map (fun p => policy_map p u) db.
 
-  Eval compute in policy_scrub testdb.
+  Definition team0user := (User 0 "dan@dan" [0;3]).
+  Definition team2user := (User 1 "richard@richard" [2;3]).
+  Eval compute in policy_scrub team0user testdb.
+  Eval compute in policy_scrub team2user testdb.
 End Policy.
+
+(* TODO: define user queries *)
+(* TODO: define optimizations moving user queries across optimization *)
+(* TODO: generalize policies *)
+(* TODO: define a generalized optimization function *)
