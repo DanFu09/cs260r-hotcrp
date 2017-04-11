@@ -8,7 +8,7 @@ Inductive user : Set :=
 Hint Constructors user.
 
 Inductive paper : Set :=
-| Paper: forall (id:nat) (title:nat)
+| Paper: forall (id:nat) (title:string)
           (team:nat) (decision:nat), paper.
 Hint Constructors paper.
 
@@ -27,7 +27,7 @@ Section SQL.
   | Sql_true: sql_query
   | Sql_false: sql_query
   | Paper_id: nat -> sql_query
-  | Paper_title: nat -> sql_query
+  | Paper_title: string -> sql_query
   | Paper_team: nat -> sql_query
   | Paper_decision: nat -> sql_query
   | And: sql_query -> sql_query -> sql_query
@@ -42,7 +42,7 @@ Section SQL.
     | Sql_true => true
     | Sql_false => false
     | Paper_id id => beq_nat p_id id
-    | Paper_title title => beq_nat p_title title
+    | Paper_title title => if string_dec p_title title then true else false
     | Paper_team team => beq_nat p_team team
     | Paper_decision decision => beq_nat p_decision decision
     | And q1 q2 => andb (sql_query_func q1 p) (sql_query_func q2 p)
@@ -52,20 +52,23 @@ Section SQL.
   end.
 
   (* Some baby test cases. *)
-  Eval compute in sql_query_func (Sql_true) (Paper 0 0 0 0).
-  Eval compute in sql_query_func (Sql_false) (Paper 0 0 0 0).
-  Eval compute in sql_query_func (Paper_id 10) (Paper 0 0 0 0).
-  Eval compute in sql_query_func (Paper_id 10) (Paper 10 0 0 0).
+  Definition empty_paper := (Paper 0 "" 0 0).
+  Eval compute in sql_query_func (Sql_true) empty_paper.
+  Eval compute in sql_query_func (Sql_false) empty_paper.
+  Eval compute in sql_query_func (Paper_id 10) empty_paper.
+  Definition paper10 := (Paper 10 "paper_10" 10 0).
+  Eval compute in sql_query_func (Paper_id 10) paper10.
+  Eval compute in sql_query_func (Paper_title "paper_10") paper10.
   Definition paper10query := (And (Paper_id 10) (Paper_team 10)).
-  Eval compute in sql_query_func paper10query (Paper 0 0 0 0).
-  Eval compute in sql_query_func paper10query (Paper 10 0 10 0).
+  Eval compute in sql_query_func paper10query empty_paper.
+  Eval compute in sql_query_func paper10query paper10.
 
   Definition sql_query_filter db q : database :=
     filter (fun p => sql_query_func q p) db.
 
   (* Some test cases. *)
-  Definition testdb := [(Paper 0 0 0 0);(Paper 1 2 0 0);(Paper 2 3 0 0);
-                        (Paper 3 4 2 0);(Paper 4 5 2 1)].
+  Definition testdb := [(Paper 0 "0" 0 0);(Paper 1 "hi" 0 0);(Paper 2 "yo" 0 0);
+                        (Paper 3 "naw" 2 0);(Paper 4 "P=NP" 2 1)].
   Definition team0query := (Paper_team 0).
   Definition team2query := (Paper_team 2).
   Definition decision1query := (Paper_decision 1).
