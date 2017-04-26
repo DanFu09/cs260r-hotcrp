@@ -191,6 +191,59 @@ Module HotCRP.
         (sql_query_filter (snd (simple_optimization uq2 u)) db)) ->
       In p (simple_policy_scrub u
         (sql_query_filter (snd (simple_optimization (And uq1 uq2) u)) db)).
+    Proof.
+      intros; destruct p, u.
+      cbn.
+      unfold sql_query_filter in *; cbn in *.
+      unfold simple_policy_scrub in *; cbn in *.
+      apply in_map_iff.
+      apply in_map_iff in H1; destruct H1; destruct_conjs.
+      exists x; split; auto.
+      apply filter_In in H3; destruct_conjs.
+      apply filter_In; split; auto.
+      apply andb_true_iff; split; auto.
+      apply andb_true_iff in H0; destruct_conjs.
+      induction uq2; cbn; auto.
+      - destruct x; cbn in *.
+        destruct (Nat.eq_dec team1 team0).
+      --  rewrite e in *; rewrite <- beq_nat_refl in *.
+          inversion H1; subst; induction p; cbn in *; auto.
+      --- destruct (Nat.eq_dec n 0).
+          rewrite e in *; cbn in *; rewrite <- beq_nat_refl in *; auto.
+          induction n; try omega; discriminate.
+      --  rewrite <- Nat.eqb_neq in n; rewrite n in H1; inversion H1; subst.
+          induction p; cbn in *; auto.
+          apply in_map_iff in H2; destruct H2; destruct_conjs; destruct x.
+          unfold simple_policy_map in H2.
+          destruct (Nat.eq_dec team1 team0).
+      --- subst. rewrite <- beq_nat_refl in H2. inversion H2; subst.
+          rewrite <- beq_nat_refl in n. discriminate.
+      --- rewrite <- Nat.eqb_neq in n1; rewrite n1 in H2; inversion H2;
+          subst; apply filter_In in H6; destruct_conjs; auto.
+      - destruct x; cbn in *.
+        destruct (Nat.eq_dec team1 team0).
+      --  rewrite e in *; rewrite <- beq_nat_refl in *.
+          inversion H1; subst; induction p; cbn in *; auto.
+      --- destruct (Nat.eq_dec n 0).
+          rewrite e in *; cbn in *; rewrite <- beq_nat_refl in *; auto.
+          induction n; try omega; discriminate.
+          rewrite <- Nat.eqb_neq in n0; rewrite n0.
+          unfold sql_query_func; cbn. rewrite <- beq_nat_refl; auto.
+      --  rewrite <- Nat.eqb_neq in n; rewrite n in H1; inversion H1; subst.
+          induction p; cbn in *; auto.
+          apply in_map_iff in H2; destruct H2; destruct_conjs; destruct x.
+          unfold simple_policy_map in H2.
+          destruct (Nat.eq_dec team1 team0).
+      --- subst. rewrite <- beq_nat_refl in H2. inversion H2; subst.
+          rewrite <- beq_nat_refl in n. discriminate.
+      --- rewrite <- Nat.eqb_neq in n1; rewrite n1 in H2; inversion H2;
+          subst; apply filter_In in H6; destruct_conjs; auto.
+      - unfold sql_query_func in H5; apply andb_true_iff in H5;
+        destruct_conjs. fold sql_query_func in H5; fold sql_query_func in H6.
+        apply andb_true_iff; split; [ apply IHuq2_1 | apply IHuq2_2 ]; auto.
+      --  admit.
+      --  admit.
+      - admit.
     Admitted.
 
     Lemma simple_optimization_or_left (uq1:user_query) (uq2:user_query)
@@ -199,7 +252,16 @@ Module HotCRP.
         (sql_query_filter (snd (simple_optimization uq1 u)) db)) ->
       In p (simple_policy_scrub u
         (sql_query_filter (snd (simple_optimization (Or uq1 uq2) u)) db)).
-    Admitted.
+    Proof.
+      intros. unfold simple_policy_scrub in *; unfold simple_policy_map in *;
+      apply in_map_iff in H; destruct_conjs.
+      apply in_map_iff; exists H; split; auto; clear H0;
+      unfold sql_query_filter in *; unfold sql_query_func in *.
+      apply filter_In in H1; destruct_conjs.
+      apply filter_In; split; auto; destruct u;
+      unfold simple_optimization in *; unfold snd in *.
+      apply orb_true_iff; left; auto.
+    Qed.
 
     Lemma simple_optimization_or_right (uq1:user_query) (uq2:user_query)
       (u:user) (db:database) (p:paper):
@@ -207,7 +269,16 @@ Module HotCRP.
         (sql_query_filter (snd (simple_optimization uq2 u)) db)) ->
       In p (simple_policy_scrub u
         (sql_query_filter (snd (simple_optimization (Or uq1 uq2) u)) db)).
-    Admitted.
+    Proof.
+      intros. unfold simple_policy_scrub in *; unfold simple_policy_map in *;
+      apply in_map_iff in H; destruct_conjs.
+      apply in_map_iff; exists H; split; auto; clear H0;
+      unfold sql_query_filter in *; unfold sql_query_func in *.
+      apply filter_In in H1; destruct_conjs.
+      apply filter_In; split; auto; destruct u;
+      unfold simple_optimization in *; unfold snd in *.
+      apply orb_true_iff; right; auto.
+    Qed.
 
     (* One direction of our proof: nothing is lost by our optimization. *)
     Lemma simple_optimization_no_loss :
