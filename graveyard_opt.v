@@ -3,8 +3,6 @@ Require Import Recdef.
 Require Import Program.Tactics.
 Import ListNotations.
 
-Load hotcrp.
-
 (* Graveyard of bad optimizations *)
 
 (* For simple_policy_map:
