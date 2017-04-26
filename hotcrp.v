@@ -3,10 +3,16 @@ Require Import Recdef.
 Require Import Program.Tactics.
 Import ListNotations.
 
+Load hotcrp_spec.
+
 (*  Overall architecture:
      *)
 
 Module HotCRP.
+  (********************************************************)
+  (* The spec *)
+  (********************************************************)
+
   Inductive user : Set :=
   | User: forall (id:nat) (email:string) (team: nat), user.
   Hint Constructors user.
@@ -16,6 +22,7 @@ Module HotCRP.
             (team:nat) (decision:nat), paper.
   Hint Constructors paper.
 
+  (*(* Currently not needed *)
   Lemma paper_dec : forall p1 p2 : paper, {p1 = p2} + {p1 <> p2}.
   Proof.
     intros; induction p1, p2.
@@ -23,7 +30,7 @@ Module HotCRP.
       (eq_nat_dec  decision decision0).
     1: admit.
     all: right; subst. (* Don't know what to do here... *)
-  Admitted.
+  Admitted.*)
 
   Notation database := (list paper).
 
@@ -104,7 +111,13 @@ Module HotCRP.
     Eval compute in sql_query_filter (Or (decision1queryneq) team0query) testdb.
   End SQL.
 
-  Section Policy.
+  Notation user_query := sql_query.
+
+
+  (********************************************************)
+  (* Policies *)
+  (********************************************************)
+  Section SimplePolicy.
     (* Scrub out the decision and put 0 in *)
     Fixpoint simple_policy_map (p:paper) (u:user) : paper :=
     match u with
@@ -122,11 +135,13 @@ Module HotCRP.
     Definition team2user := (User 1 "richard@richard" 2).
     Eval compute in simple_policy_scrub team0user testdb.
     Eval compute in simple_policy_scrub team2user testdb.
-  End Policy.
+  End SimplePolicy.
 
-  Notation user_query := sql_query.
 
-  Section Optimization.
+  (********************************************************)
+  (* Optimizations *)
+  (********************************************************)
+  Section SimpleOptimization.
     (* A simple optimization for simple_policy_map:
     Move the entire user query into SQL, and replace any instance of
     (paper.decision = x) with
@@ -626,7 +641,7 @@ Module HotCRP.
       rewrite filter_In in *.
       firstorder.
     Admitted.
-  End Optimization.
+  End SimpleOptimization.
 
   (* TODO: generalize policies *)
   (* TODO: define a generalized optimization function *)
