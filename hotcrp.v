@@ -183,6 +183,8 @@ Module HotCRP.
 
     Lemma simple_optimization_and (uq1:user_query) (uq2:user_query)
       (u:user) (db:database) (p:paper):
+      In p (simple_policy_scrub u db) ->
+      sql_query_func (And uq1 uq2) p = true ->
       In p (simple_policy_scrub u
         (sql_query_filter (snd (simple_optimization uq1 u)) db)) ->
       In p (simple_policy_scrub u
@@ -289,15 +291,13 @@ Module HotCRP.
       ----  rewrite <- Nat.eqb_neq in n1; rewrite n1;
             unfold sql_query_func in *; unfold beq_field in *;
             rewrite <- H1 in *; rewrite H0; rewrite H; auto.
-      --  assert (sql_query_func uq1 p = true). unfold sql_query_func in *.
+      --  apply simple_optimization_and with (uq1:=uq1) (uq2:=uq2)
+          (u:=(User id email team)) (db:=db) (p:=p); auto.
+          assert (sql_query_func uq1 p = true). unfold sql_query_func in *.
           apply andb_true_iff in H0; destruct_conjs; auto.
+          apply IHuq1; auto.
           assert (sql_query_func uq2 p = true). unfold sql_query_func in *.
           apply andb_true_iff in H0; destruct_conjs; auto.
-          destruct H1. destruct H2.
-          apply simple_optimization_and with (uq1:=uq1) (uq2:=uq2)
-          (u:=(User id email team)) (db:=db) (p:=p);
-          unfold sql_query_filter.
-          apply IHuq1; auto.
           apply IHuq2; auto.
       --  unfold sql_query_func in H0. apply orb_true_iff in H0.
           induction H0.
@@ -310,7 +310,7 @@ Module HotCRP.
           (u:=(User id email team)) (db:=db) (p:=p).
           apply IHuq2; auto.
       - destruct uq; auto; destruct p0; simpl; auto.
-    Admitted.
+    Qed.
 
     Lemma fst_opt_always_true (q : user_query) (u : user) (p : paper):
     (sql_query_func (fst (simple_optimization q u)) p) = true.
