@@ -129,10 +129,12 @@ Module HotCRP.
         match uq with
         | Field_eq (Paper_decision x) =>
             (Sql_true,
-            Or (And (Field_eq (Paper_team team)) (Field_eq (Paper_decision 0))) (And uq (Field_neq (Paper_team team))))
+            Or (And (Field_eq (Paper_team team)) (Field_eq (Paper_decision 0)))
+              (And uq (Field_neq (Paper_team team))))
         | Field_neq (Paper_decision x) =>
             (Sql_true,
-            Or (And (Field_eq (Paper_team team)) (Field_neq (Paper_decision 0))) (And uq (Field_neq (Paper_team team))))
+            Or (And (Field_eq (Paper_team team)) (Field_neq (Paper_decision 0)))
+               (And uq (Field_neq (Paper_team team))))
         | And q1 q2 =>
             (Sql_true,
             And (snd (simple_optimization q1 u)) (snd (simple_optimization q2 u)))
@@ -189,9 +191,9 @@ Module HotCRP.
         (sql_query_filter (snd (simple_optimization (Or uq1 uq2) u)) db)).
     Admitted.
 
-    Lemma simple_optimization_correct :
+    Lemma simple_optimization_no_loss :
       forall uq u db p,
-      In p (sql_query_filter uq (simple_policy_scrub u db)) <->
+      In p (sql_query_filter uq (simple_policy_scrub u db)) ->
       In p (sql_query_filter (fst (simple_optimization uq u))
         (simple_policy_scrub u (sql_query_filter (snd (simple_optimization uq u)) db)
       )).
@@ -265,6 +267,15 @@ Module HotCRP.
             (u:=(User id email team)) (db:=db) (p:=p).
             apply IHuq2; auto.
       --  destruct uq; auto; destruct p0; simpl; auto.
+    Admitted.
+
+    Lemma simple_optimization_no_extra :
+      forall uq u db p,
+      In p (sql_query_filter (fst (simple_optimization uq u))
+        (simple_policy_scrub u (sql_query_filter (snd (simple_optimization uq u)) db)
+      )) ->
+      In p (sql_query_filter uq (simple_policy_scrub u db)).
+    Proof.
       - (* Second direction *)
         split; destruct_conjs.
       --  admit.
