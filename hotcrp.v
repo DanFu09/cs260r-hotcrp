@@ -292,6 +292,16 @@ Module HotCRP.
       - destruct uq; auto; destruct p0; simpl; auto.
     Admitted.
 
+    Lemma fst_opt_always_true (q : user_query) (u : user) (p : paper):
+    (sql_query_func (fst (simple_optimization q u)) p) = true.
+    Proof.
+      destruct p.
+      destruct u.
+      induction q;simpl;auto.
+      destruct p;simpl;auto.
+      destruct p;simpl;auto.
+    Qed.
+
     (* Other direction of our proof: the optimization doesn't give us
     anything extra *)
     Lemma simple_optimization_no_extra :
@@ -301,16 +311,229 @@ Module HotCRP.
       )) ->
       In p (sql_query_filter uq (simple_policy_scrub u db)).
     Proof.
-      - (* Second direction *)
-        split; destruct_conjs.
-      --  admit.
-      --  destruct uq; auto; unfold simple_optimization in H0; simpl in H0.
-      --- unfold simple_optimization in H; simpl in H; rewrite false_filter in H;
-          unfold simple_policy_scrub in H; simpl in H; contradiction.
-      --- admit.
-      --- admit.
-      --- admit.
-      --- admit.
+      Proof.
+      intros.
+      destruct u.
+      induction uq;
+      unfold sql_query_filter in *;
+      rewrite filter_In in *;
+      destruct_pairs;
+      simpl in *.
+      rewrite true_filter in H.
+      auto.
+      rewrite false_filter in H.
+      firstorder.
+      (* handle the Field_eq cases *)
+      destruct p0; unfold simple_optimization; simpl in *;
+      unfold simple_policy_scrub in *;
+      rewrite in_map_iff in *.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n.
+      rewrite n.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      rewrite <- beq_nat_refl in *.
+      simpl in H2.
+      rewrite orb_true_iff in H2.
+      destruct H2.
+      admit.
+      rewrite andb_true_iff in H.
+      destruct_pairs.
+      firstorder.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0 in *.
+      simpl in H2.
+      rewrite andb_true_iff in H2.
+      rewrite <- H.
+      firstorder.
+      (* neq cases *)
+      destruct p0; unfold simple_optimization; simpl in *;
+      unfold simple_policy_scrub in *;
+      rewrite in_map_iff in *.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n.
+      rewrite n.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      simpl.
+      rewrite <- beq_nat_refl.
+      auto.
+      subst.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0.
+      auto.
+      destruct H.
+      destruct_pairs.
+      rewrite filter_In in H1.
+      destruct_pairs.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      subst.
+      rewrite <- beq_nat_refl in *.
+      simpl in H2.
+      rewrite orb_true_iff in H2.
+      destruct H2.
+      admit.
+      rewrite andb_true_iff in H.
+      destruct_pairs.
+      firstorder.
+      rewrite <- beq_nat_false_iff in n0.
+      rewrite n0 in *.
+      simpl in H2.
+      rewrite andb_true_iff in H2.
+      rewrite <- H.
+      firstorder.
+      (* and case *)
+      unfold simple_policy_scrub in *.
+      rewrite in_map_iff in *.
+      firstorder.
+      rewrite filter_In in H3.
+      destruct_pairs.
+      rewrite andb_true_iff in H4.
+      destruct_pairs.
+      firstorder.
+      rewrite filter_In in H3.
+      destruct_pairs.
+      rewrite andb_true_iff in H4.
+      destruct_pairs.
+      specialize (H2 x).
+      specialize (H1 x).
+      simpl in *.
+      firstorder.
+      rewrite filter_In in *.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      rewrite <- H in *.
+      admit. (* same pesky case where teams are equal *)
+      rewrite <- beq_nat_false_iff in n.
+      rewrite n in H.
+      rewrite H in *.
+      pose (fst_opt_always_true uq1 (User id email team) p).
+      pose (fst_opt_always_true uq2 (User id email team) p).
+      apply H1 in e0.
+      apply H2 in e.
+      rewrite filter_In in *.
+      firstorder.
+      (* or case *)
+      unfold simple_policy_scrub in *.
+      rewrite in_map_iff in *.
+      firstorder.
+      rewrite filter_In in H3.
+      destruct_pairs.
+      rewrite orb_true_iff in H4.
+      firstorder.
+      specialize (H2 x).
+      specialize (H1 x).
+      simpl in *.
+      firstorder.
+      rewrite filter_In in *.
+      firstorder.
+      unfold simple_policy_map in H.
+      destruct x.
+      destruct (Nat.eq_dec team0 team).
+      admit. (* pesky case again *)
+      rewrite <- beq_nat_false_iff in n.
+      rewrite n in H.
+      rewrite H in *.
+      rewrite orb_true_iff in H4.
+      pose (fst_opt_always_true uq1 (User id email team) p).
+      pose (fst_opt_always_true uq2 (User id email team) p).
+      rewrite filter_In in *.
+      firstorder.
     Admitted.
   End Optimization.
 
