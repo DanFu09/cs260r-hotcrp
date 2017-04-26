@@ -77,7 +77,7 @@ Module HotCRP.
     Eval compute in sql_query_func paper10query empty_paper.
     Eval compute in sql_query_func paper10query paper10.
 
-    Definition sql_query_filter db q : database :=
+    Definition sql_query_filter (q:sql_query) db : database :=
       filter (fun p => sql_query_func q p) db.
 
     (* Some test cases. *)
@@ -88,11 +88,11 @@ Module HotCRP.
     Definition team2query := (Field_eq (Paper_team 2)).
     Definition decision1queryeq := (Field_eq (Paper_decision 1)).
     Definition decision1queryneq := (Field_neq (Paper_decision 1)).
-    Eval compute in sql_query_filter testdb team0query.
-    Eval compute in sql_query_filter testdb team2query.
-    Eval compute in sql_query_filter testdb decision1queryeq.
-    Eval compute in sql_query_filter testdb (And (decision1queryneq) team2query).
-    Eval compute in sql_query_filter testdb (Or (decision1queryneq) team0query).
+    Eval compute in sql_query_filter team0query testdb.
+    Eval compute in sql_query_filter team2query testdb.
+    Eval compute in sql_query_filter decision1queryeq testdb.
+    Eval compute in sql_query_filter (And (decision1queryneq) team2query) testdb.
+    Eval compute in sql_query_filter (Or (decision1queryneq) team0query) testdb.
   End SQL.
 
   Section Policy.
@@ -115,11 +115,168 @@ Module HotCRP.
     Eval compute in simple_policy_scrub team2user testdb.
   End Policy.
 
-  Section UserQueries.
-    Notation user_query := sql_query.
-  End UserQueries.
+  Notation user_query := sql_query.
 
-  (* TODO: define optimizations moving user queries across optimization *)
+  Section Optimization.
+    (* A simple optimization for simple_policy_map:
+    Move the entire user query into SQL, and replace any instance of
+    (Decision = x) with
+    (Team = u.team) || (Decision = x && !(Team = u.team)) *)
+    Fixpoint simple_optimization (uq:user_query) (u:user) :
+      (user_query * sql_query) :=
+      match u with
+      | User _ _ team =>
+        match uq with
+        | Field_eq (Paper_decision x) =>
+            (Sql_true,
+            Or (Field_eq (Paper_team team)) (And uq (Field_neq (Paper_team team))))
+        | Field_neq (Paper_decision x) =>
+            (Sql_true,
+            Or (Field_eq (Paper_team team)) (And uq (Field_neq (Paper_team team))))
+        | And q1 q2 =>
+            (Sql_true,
+            And (snd (simple_optimization q1 u)) (snd (simple_optimization q2 u)))
+        | Or q1 q2 =>
+            (Sql_true,
+            Or (snd (simple_optimization q1 u)) (snd (simple_optimization q2 u)))
+        | _ => (Sql_true, uq)
+        end
+      end.
+
+    Definition decision0 := (Field_eq (Paper_decision 0)).
+    Definition testuser := (User 1 "dan@dan" 1).
+    Definition complexquery := (Or Sql_false
+      (And decision0 (Field_eq (Paper_team 1)))).
+    Eval compute in simple_optimization decision0 testuser.
+    Eval compute in simple_optimization complexquery testuser.
+
+    Lemma true_filter :
+      forall db, (filter (fun _ : paper => true) db) = db.
+    Proof.
+      intros; induction db; auto.
+      unfold filter in *; rewrite IHdb; auto.
+    Qed.
+
+    Lemma false_filter :
+      forall db, (filter (fun _ : paper => false) db) = [].
+    Proof.
+      intros; induction db; auto.
+    Qed.
+
+    Lemma simple_optimization_and (uq1:user_query) (uq2:user_query)
+      (u:user) (db:database) (p:paper):
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization uq1 u)) db)) ->
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization uq2 u)) db)) ->
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization (And uq1 uq2) u)) db)).
+    Admitted.
+
+    Lemma simple_optimization_or_left (uq1:user_query) (uq2:user_query)
+      (u:user) (db:database) (p:paper):
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization uq1 u)) db)) ->
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization (Or uq1 uq2) u)) db)).
+    Admitted.
+
+    Lemma simple_optimization_or_right (uq1:user_query) (uq2:user_query)
+      (u:user) (db:database) (p:paper):
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization uq2 u)) db)) ->
+      In p (simple_policy_scrub u
+        (sql_query_filter (snd (simple_optimization (Or uq1 uq2) u)) db)).
+    Admitted.
+
+    Lemma simple_optimization_correct :
+      forall uq u db p,
+      In p (sql_query_filter uq (simple_policy_scrub u db)) <->
+      In p (sql_query_filter (fst (simple_optimization uq u))
+        (simple_policy_scrub u (sql_query_filter (snd (simple_optimization uq u)) db)
+      )).
+    Proof.
+      unfold sql_query_filter; split; intros; rewrite filter_In in *; destruct u.
+      - (* First direction *)
+        split; destruct_conjs.
+      --  induction uq.
+      --- unfold simple_optimization; simpl; try rewrite true_filter; auto.
+      --- unfold sql_query_func in H0; discriminate.
+      --- (* Field_eq case *)
+          unfold simple_policy_scrub in *; unfold simple_policy_map in *.
+          rewrite in_map_iff in H; destruct_conjs. destruct H.
+          destruct (Nat.eq_dec team0 team).
+      ----  rewrite e in *. rewrite <- beq_nat_refl in H1;
+            destruct p0; unfold simple_optimization; unfold snd; auto;
+            apply in_map_iff; exists (Paper id0 title team decision);
+            rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
+            auto; rewrite <- H1 in H0;
+            unfold sql_query_func in *; unfold beq_field in *; auto;
+            rewrite <- beq_nat_refl; auto.
+      ----  assert (team0 =? team = false). apply Nat.eqb_neq; auto.
+            rewrite H in H1.
+            apply in_map_iff. exists p; split.
+            rewrite <- H1. rewrite H; auto.
+            apply filter_In; split. rewrite <- H1; auto.
+            destruct p0.
+            1, 2, 3: unfold simple_optimization; unfold snd; auto.
+            1: unfold simple_optimization; unfold snd;
+            unfold sql_query_func in *; unfold beq_field in *; rewrite <- H1 in *;
+            rewrite H0; rewrite H; auto.
+      --- (* Field_neq case - EXACT SAME, but I don't know how to use semicolons *)
+          unfold simple_policy_scrub in *; unfold simple_policy_map in *.
+          rewrite in_map_iff in H; destruct_conjs. destruct H.
+          destruct (Nat.eq_dec team0 team).
+      ----  rewrite e in *. rewrite <- beq_nat_refl in H1;
+            destruct p0; unfold simple_optimization; unfold snd; auto;
+            apply in_map_iff; exists (Paper id0 title team decision);
+            rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
+            auto; rewrite <- H1 in H0;
+            unfold sql_query_func in *; unfold beq_field in *; auto;
+            rewrite <- beq_nat_refl; auto.
+      ----  assert (team0 =? team = false). apply Nat.eqb_neq; auto.
+            rewrite H in H1.
+            apply in_map_iff. exists p; split.
+            rewrite <- H1. rewrite H; auto.
+            apply filter_In; split. rewrite <- H1; auto.
+            destruct p0.
+            1, 2, 3: unfold simple_optimization; unfold snd; auto.
+            1: unfold simple_optimization; unfold snd;
+            unfold sql_query_func in *; unfold beq_field in *; rewrite <- H1 in *;
+            rewrite H0; rewrite H; auto.
+      --- assert (sql_query_func uq1 p = true). unfold sql_query_func in *.
+          apply andb_true_iff in H0; destruct_conjs; auto.
+          assert (sql_query_func uq2 p = true). unfold sql_query_func in *.
+          apply andb_true_iff in H0; destruct_conjs; auto.
+          destruct H1. destruct H2.
+          apply simple_optimization_and with (uq1:=uq1) (uq2:=uq2)
+          (u:=(User id email team)) (db:=db) (p:=p);
+          unfold sql_query_filter.
+          apply IHuq1; auto.
+          apply IHuq2; auto.
+      --- unfold sql_query_func in H0. apply orb_true_iff in H0.
+          induction H0.
+      ----  assert (sql_query_func uq1 p = true); auto.
+            apply simple_optimization_or_left with (uq1:=uq1) (uq2:=uq2)
+            (u:=(User id email team)) (db:=db) (p:=p).
+            apply IHuq1; auto.
+      ----  assert (sql_query_func uq2 p = true); auto.
+            apply simple_optimization_or_right with (uq1:=uq1) (uq2:=uq2)
+            (u:=(User id email team)) (db:=db) (p:=p).
+            apply IHuq2; auto.
+      --  destruct uq; auto; destruct p0; simpl; auto.
+      - (* Second direction *)
+        split; destruct_conjs.
+      --  admit.
+      --  destruct uq; auto; unfold simple_optimization in H0; simpl in H0.
+      --- unfold simple_optimization in H; simpl in H; rewrite false_filter in H;
+          unfold simple_policy_scrub in H; simpl in H; contradiction.
+      --- admit.
+      --- admit.
+      --- admit.
+      --- admit.
+    Admitted.
+  End Optimization.
 
   (* TODO: generalize policies *)
   (* TODO: define a generalized optimization function *)
