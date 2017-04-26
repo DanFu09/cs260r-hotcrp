@@ -129,8 +129,13 @@ Module HotCRP.
   Section Optimization.
     (* A simple optimization for simple_policy_map:
     Move the entire user query into SQL, and replace any instance of
-    (Decision = x) with
-    (Team = u.team && 0 = x) || (Decision = x && !(Team = u.team)) *)
+    (paper.decision = x) with
+    if x = 0 then (paper.team = u.team) || (paper.decision = x)
+    else (paper.decision = x) && (Team != u.team),
+    and replace any instance of
+    (paper.decision != x) with
+    if x = 0 then (paper.decision != x) && (paper.team != u.team)
+    else (paper.team = u.team) || (paper.decision != x) *)
     Fixpoint simple_optimization (uq:user_query) (u:user) :
       (user_query * sql_query) :=
       match u with
@@ -138,12 +143,14 @@ Module HotCRP.
         match uq with
         | Field_eq (Paper_decision x) =>
             (Sql_true,
-            Or (And (Field_eq (Paper_team team)) (Field_eq (Paper_decision 0)))
-              (And uq (Field_neq (Paper_team team))))
+            if (Nat.eqb x 0) then
+            Or (Field_eq (Paper_team team)) uq else
+            And uq (Field_neq (Paper_team team)))
         | Field_neq (Paper_decision x) =>
             (Sql_true,
-            Or (And (Field_eq (Paper_team team)) (Field_neq (Paper_decision 0)))
-               (And uq (Field_neq (Paper_team team))))
+            if (Nat.eqb x 0) then
+            And uq (Field_neq (Paper_team team)) else
+            Or (Field_eq (Paper_team team)) uq)
         | And q1 q2 =>
             (Sql_true,
             And (snd (simple_optimization q1 u)) (snd (simple_optimization q2 u)))
@@ -224,51 +231,64 @@ Module HotCRP.
           rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
           auto; rewrite <- H1 in H0;
           unfold sql_query_func in *; unfold beq_field in *; auto.
-          (* This is not true if decision <> 0,
-          because otherwise it won't make it past the policy scrub... *)
-          destruct (in_dec paper_dec (Paper id0 title team0 0) db).
-      ----  exists (Paper id0 title team 0);
+          destruct (Nat.eq_dec n 0).
+      ----  exists (Paper id0 title team decision);
             rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
-            rewrite <- e; auto;
+            auto; rewrite <- e; auto;
+            rewrite e0; rewrite <- beq_nat_refl;
             unfold sql_query_func in *; unfold beq_field in *;
-            rewrite <- beq_nat_refl; auto.
-      ----  (* I don't actually know how to make this case work :/ *) admit.
-      --- assert (team0 =? team = false). apply Nat.eqb_neq; auto.
-          rewrite H in H1.
-          apply in_map_iff. exists p; split.
-          rewrite <- H1. rewrite H; auto.
-          apply filter_In; split. rewrite <- H1; auto.
-          destruct p0.
-          1, 2, 3: unfold simple_optimization; unfold snd; auto.
-          1: unfold simple_optimization; unfold snd;
-          unfold sql_query_func in *; unfold beq_field in *; rewrite <- H1 in *;
-          rewrite H0; rewrite H; auto.
+            rewrite e; rewrite <- beq_nat_refl; auto.
+      ----  unfold sql_query_func in H0; unfold beq_field in H0;
+            rewrite <- H1 in H0; apply beq_nat_true in H0; rewrite H0 in *;
+            omega.
+      --- assert (team0 =? team = false) by now apply Nat.eqb_neq.
+          rewrite H in H1; apply in_map_iff; exists p; split.
+          rewrite <- H1; rewrite H; auto.
+          apply filter_In; split; rewrite <- H1; auto;
+          destruct p0; rewrite H1; unfold simple_optimization;
+          unfold snd; auto;
+          unfold sql_query_func in H0; unfold beq_field in H0;
+          rewrite <- H1 in H0.
+          destruct (Nat.eq_dec n0 0).
+      ----  rewrite e; simpl; rewrite <- H1; rewrite e in *;
+            rewrite H0; rewrite H; auto.
+      ----  rewrite <- Nat.eqb_neq in n1; rewrite n1;
+            unfold sql_query_func in *; unfold beq_field in *;
+            rewrite <- H1 in *; rewrite H0; rewrite H; auto.
       --  (* Field_neq case *)
           unfold simple_policy_scrub in *; unfold simple_policy_map in *.
           rewrite in_map_iff in H; destruct_conjs. destruct H.
           destruct (Nat.eq_dec team0 team).
       --- rewrite e in *. rewrite <- beq_nat_refl in H1;
           destruct p0; unfold simple_optimization; unfold snd; auto;
-          apply in_map_iff; exists (Paper id0 title team decision);
+          apply in_map_iff.
+          1, 2, 3: exists (Paper id0 title team decision);
           rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
           auto; rewrite <- H1 in H0;
-          unfold sql_query_func in *; unfold beq_field in *; auto;
-          rewrite <- beq_nat_refl; auto.
-          destruct (eq_nat_dec decision 0).
-      ----  rewrite <- Nat.eqb_eq in e0; rewrite e0; simpl.
-            (* For some reason, I can't kill this case *)
-            admit.
-      ----  rewrite <- Nat.eqb_neq in n0; rewrite n0; simpl; auto.
-      --- assert (team0 =? team = false). apply Nat.eqb_neq; auto.
-          rewrite H in H1.
-          apply in_map_iff. exists p; split.
-          rewrite <- H1. rewrite H; auto.
-          apply filter_In; split. rewrite <- H1; auto.
-          destruct p0.
-          1, 2, 3: unfold simple_optimization; unfold snd; auto.
-          1: unfold simple_optimization; unfold snd;
-          unfold sql_query_func in *; unfold beq_field in *; rewrite <- H1 in *;
-          rewrite H0; rewrite H; auto.
+          unfold sql_query_func in *; unfold beq_field in *; auto.
+          destruct (Nat.eq_dec n 0).
+      ----  unfold sql_query_func in *; unfold beq_field in *;
+            rewrite <- H1 in *; rewrite e0 in *; rewrite <- beq_nat_refl in *;
+            simpl in *; discriminate.
+      ----  exists (Paper id0 title team decision);
+            rewrite <- beq_nat_refl; split; auto; apply filter_In; split;
+            auto; rewrite <- Nat.eqb_neq in n0; rewrite n0;
+            unfold sql_query_func in *; unfold beq_field in *;
+            rewrite <- beq_nat_refl; auto.
+      --- assert (team0 =? team = false) by now apply Nat.eqb_neq.
+          rewrite H in H1; apply in_map_iff; exists p; split.
+          rewrite <- H1; rewrite H; auto.
+          apply filter_In; split; rewrite <- H1; auto;
+          destruct p0; rewrite H1; unfold simple_optimization;
+          unfold snd; auto;
+          unfold sql_query_func in H0; unfold beq_field in H0;
+          rewrite <- H1 in H0.
+          destruct (Nat.eq_dec n0 0).
+      ----  rewrite e; simpl; rewrite <- H1; rewrite e in *;
+            rewrite H0; rewrite H; auto.
+      ----  rewrite <- Nat.eqb_neq in n1; rewrite n1;
+            unfold sql_query_func in *; unfold beq_field in *;
+            rewrite <- H1 in *; rewrite H0; rewrite H; auto.
       --  assert (sql_query_func uq1 p = true). unfold sql_query_func in *.
           apply andb_true_iff in H0; destruct_conjs; auto.
           assert (sql_query_func uq2 p = true). unfold sql_query_func in *.
