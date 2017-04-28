@@ -3,7 +3,6 @@ Require Import Recdef.
 Require Import Program.Tactics.
 Import ListNotations.
 
-Load hotcrp_spec.
 
 (*  Overall architecture:
      *)
@@ -488,22 +487,35 @@ Module HotCRP.
       firstorder.
       unfold simple_policy_map in H.
       destruct x.
-      destruct (Nat.eq_dec team0 team).
+      destruct (Nat.eq_dec n 0).
       subst.
       rewrite <- beq_nat_refl in *.
       simpl in H2.
       rewrite orb_true_iff in H2.
       destruct H2.
-      admit.
-      rewrite andb_true_iff in H.
-      destruct_pairs.
-      firstorder.
-      rewrite <- beq_nat_false_iff in n0.
-      rewrite n0 in *.
+      assert (team0 = team) by (now apply Nat.eqb_eq).
+      rewrite H2.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (decision = 0) by (now apply Nat.eqb_eq).
+      rewrite H2.
+      destruct (Nat.eq_dec team0 team).
+      rewrite e.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (team0 =? team = false) by now apply Nat.eqb_neq.
+      rewrite H3.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (n =? 0 = false) by now apply Nat.eqb_neq.
+      rewrite H3 in *.
+      subst.
       simpl in H2.
       rewrite andb_true_iff in H2.
-      rewrite <- H.
-      firstorder.
+      destruct_pairs.
+      rewrite negb_true_iff in H2.
+      rewrite H2.
+      auto.
       (* neq cases *)
       destruct p0; unfold simple_optimization; simpl in *;
       unfold simple_policy_scrub in *;
@@ -563,22 +575,36 @@ Module HotCRP.
       firstorder.
       unfold simple_policy_map in H.
       destruct x.
-      destruct (Nat.eq_dec team0 team).
+      destruct (Nat.eq_dec n 0).
       subst.
       rewrite <- beq_nat_refl in *.
       simpl in H2.
+      rewrite andb_true_iff in H2.
+      destruct H2.
+      rewrite negb_true_iff in *.
+      rewrite H2.
+      auto.
+      assert (n =? 0 = false) by now apply Nat.eqb_neq.
+      rewrite H3 in *.
+      subst.
+      simpl in *.
       rewrite orb_true_iff in H2.
       destruct H2.
-      admit.
-      rewrite andb_true_iff in H.
-      destruct_pairs.
-      firstorder.
-      rewrite <- beq_nat_false_iff in n0.
-      rewrite n0 in *.
-      simpl in H2.
-      rewrite andb_true_iff in H2.
-      rewrite <- H.
-      firstorder.
+      rewrite H.
+      rewrite negb_true_iff.
+      rewrite beq_nat_false_iff in *.
+      auto.
+      rewrite negb_true_iff in H.
+      destruct (Nat.eq_dec team0 team).
+      rewrite e.
+      rewrite <- beq_nat_refl.
+      rewrite negb_true_iff.
+      rewrite beq_nat_false_iff in *.
+      auto.
+      rewrite <- Nat.eqb_neq in n1.
+      rewrite n1.
+      rewrite negb_true_iff.
+      auto.
       (* and case *)
       unfold simple_policy_scrub in *.
       rewrite in_map_iff in *.
@@ -604,7 +630,13 @@ Module HotCRP.
       rewrite e in *.
       rewrite <- beq_nat_refl in *.
       rewrite <- H in *.
-      admit. (* same pesky case where teams are equal *)
+      pose (fst_opt_always_true uq1 (User id email team) p).
+      pose (fst_opt_always_true uq2 (User id email team) p).
+      subst.
+      apply H1 in e1.
+      apply H2 in e0.
+      rewrite filter_In in *.
+      firstorder.
       rewrite <- beq_nat_false_iff in n.
       rewrite n in H.
       rewrite H in *.
@@ -631,7 +663,19 @@ Module HotCRP.
       unfold simple_policy_map in H.
       destruct x.
       destruct (Nat.eq_dec team0 team).
-      admit. (* pesky case again *)
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      rewrite orb_true_iff in H4.
+      pose (fst_opt_always_true uq1 (User id email team) p).
+      pose (fst_opt_always_true uq2 (User id email team) p).
+      subst.
+      destruct H4.
+      firstorder.
+      rewrite filter_In in *.
+      firstorder.
+      firstorder.
+      rewrite filter_In in *.
+      firstorder.
       rewrite <- beq_nat_false_iff in n.
       rewrite n in H.
       rewrite H in *.
@@ -640,7 +684,7 @@ Module HotCRP.
       pose (fst_opt_always_true uq2 (User id email team) p).
       rewrite filter_In in *.
       firstorder.
-    Admitted.
+    Qed.
   End SimpleOptimization.
 
   (* TODO: generalize policies *)
