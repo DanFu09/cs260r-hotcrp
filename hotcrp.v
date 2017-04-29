@@ -255,9 +255,58 @@ Module HotCRP.
       - unfold sql_query_func in H5; apply andb_true_iff in H5;
         destruct_conjs. fold sql_query_func in H5; fold sql_query_func in H6.
         apply andb_true_iff; split; [ apply IHuq2_1 | apply IHuq2_2 ]; auto.
-      --  admit.
-      --  admit.
-      - admit.
+      --
+          clear IHuq2_1 IHuq2_2.
+          rewrite in_map_iff in *.
+          destruct H2.
+          exists x0.
+          firstorder.
+          rewrite filter_In in *.
+          firstorder.
+          simpl in H9.
+          rewrite andb_true_iff in H9.
+          firstorder.
+      --
+          clear IHuq2_1 IHuq2_2.
+          rewrite in_map_iff in *.
+          destruct H2.
+          exists x0.
+          firstorder.
+          rewrite filter_In in *.
+          firstorder.
+          simpl in H9.
+          rewrite andb_true_iff in H9.
+          firstorder.
+      -
+        rewrite orb_true_iff.
+        simpl in *.
+        rewrite orb_true_iff in *.
+        destruct H5.
+        clear IHuq2_2.
+        rewrite in_map_iff in *.
+        firstorder.
+        rewrite filter_In in *.
+        simpl in *.
+        rewrite orb_true_iff in *.
+        destruct_pairs.
+        specialize (H6 x1).
+        rewrite filter_In in H6.
+        destruct H9.
+        firstorder.
+        (* shouldnt I be trying to find a contradiction here? *)
+        admit.
+        clear IHuq2_1.
+        rewrite in_map_iff in *.
+        firstorder.
+        rewrite filter_In in *.
+        simpl in *.
+        rewrite orb_true_iff in *.
+        destruct_pairs.
+        specialize (H6 x1).
+        rewrite filter_In in H6.
+        destruct H9.
+        admit.
+        firstorder.
     Admitted.
 
     Lemma simple_optimization_or_left (uq1:user_query) (uq2:user_query)
