@@ -195,6 +195,150 @@ Module HotCRP.
       intros; induction db; auto.
     Qed.
 
+    Lemma beq_nat_sym (x y : nat):
+      (x =? y) = (y =? x).
+    Proof.
+      destruct (Sumbool.sumbool_of_bool (x =? y)).
+      rewrite beq_nat_true_iff in e.
+      rewrite e.
+      auto.
+      apply beq_nat_false in e.
+      assert (y <> x) by auto.
+      rewrite <- beq_nat_false_iff in *.
+      rewrite e, H.
+      auto.
+    Qed.
+
+    Lemma help (uq:user_query) (u:user) (p:paper):
+      sql_query_func uq (simple_policy_map p u) = true ->
+        sql_query_func (snd (simple_optimization uq u)) p = true.
+    Proof.
+      intros.
+      unfold simple_policy_map in H.
+      destruct p, u.
+      induction uq;
+      simpl in *;auto.
+      (* Field_eq cases *)
+      destruct p.
+      (* paper id *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      auto.
+      (* Paper title*)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      auto.
+      (* Paper team *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      auto.
+      (* Paper decision *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      pose (beq_nat_sym 0 n).
+      rewrite <- e0.
+      rewrite H.
+      simpl.
+      rewrite orb_true_iff.
+      rewrite <- beq_nat_refl.
+      auto.
+      rewrite <- beq_nat_false_iff in n0.
+      destruct (Nat.eq_dec n 0).
+      rewrite n0 in H.
+      rewrite e in *.
+      simpl.
+      rewrite orb_true_iff.
+      auto.
+      rewrite <- beq_nat_false_iff in n1.
+      rewrite n0 in *.
+      rewrite n1.
+      simpl.
+      rewrite andb_true_iff.
+      rewrite negb_true_iff.
+      auto.
+      (* Field_neq cases *)
+      destruct p.
+      (* paper id *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      now auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      now auto.
+      (* Paper title*)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      now auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      now auto.
+      (* Paper team *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      auto.
+      assert (team =? team0 = false) by (now apply Nat.eqb_neq).
+      rewrite H0 in *.
+      now auto.
+      (* Paper decision *)
+      simpl in *.
+      destruct (Nat.eq_dec team team0).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      pose (beq_nat_sym 0 n).
+      rewrite <- e0.
+      rewrite negb_true_iff in H.
+      rewrite H.
+      simpl.
+      rewrite orb_true_iff.
+      rewrite <- beq_nat_refl.
+      now auto.
+      rewrite <- beq_nat_false_iff in n0.
+      destruct (Nat.eq_dec n 0).
+      rewrite n0 in H.
+      rewrite e in *.
+      simpl.
+      rewrite andb_true_iff.
+      rewrite <- negb_true_iff in n0.
+      now auto.
+      rewrite <- beq_nat_false_iff in n1.
+      rewrite n0 in *.
+      rewrite n1.
+      simpl.
+      rewrite <- negb_true_iff in n0.
+      rewrite orb_true_iff.
+      now auto.
+      rewrite andb_true_iff in *.
+      destruct_pairs.
+      firstorder.
+      rewrite orb_true_iff in *.
+      destruct H.
+      firstorder.
+      firstorder.
+    Qed.
+
     Lemma simple_optimization_and (uq1:user_query) (uq2:user_query)
       (u:user) (db:database) (p:paper):
       In p (simple_policy_scrub u db) ->
@@ -278,36 +422,45 @@ Module HotCRP.
           rewrite andb_true_iff in H9.
           firstorder.
       -
-        rewrite orb_true_iff.
         simpl in *.
         rewrite orb_true_iff in *.
+        rewrite in_map_iff in *.
+        destruct H2.
+        destruct_pairs.
         destruct H5.
-        clear IHuq2_2.
-        rewrite in_map_iff in *.
+        pose (IHuq2_1 H5).
         firstorder.
-        rewrite filter_In in *.
         simpl in *.
-        rewrite orb_true_iff in *.
-        destruct_pairs.
-        specialize (H6 x1).
-        rewrite filter_In in H6.
-        destruct H9.
+        specialize (H8 x1).
+        assert (In x1
+       (filter
+          (fun p : paper =>
+           sql_query_func
+             (snd (simple_optimization uq2_1 (User id0 email team0))) p) db)).
+        rewrite filter_In.
+        split;auto.
+        rewrite <- H in H5.
+        pose (help _ _ _ H5).
+        (* Induction? *)
+        now auto.
+        auto.
+        pose (IHuq2_2 H5).
         firstorder.
-        (* shouldnt I be trying to find a contradiction here? *)
-        admit.
-        clear IHuq2_1.
-        rewrite in_map_iff in *.
-        firstorder.
-        rewrite filter_In in *.
         simpl in *.
-        rewrite orb_true_iff in *.
-        destruct_pairs.
-        specialize (H6 x1).
-        rewrite filter_In in H6.
-        destruct H9.
-        admit.
-        firstorder.
-    Admitted.
+        specialize (H8 x1).
+        assert (In x1
+       (filter
+          (fun p : paper =>
+           sql_query_func
+             (snd (simple_optimization uq2_2 (User id0 email team0))) p) db)).
+        rewrite filter_In.
+        split;auto.
+        rewrite <- H in H5.
+        (* Induction? *)
+        pose (help _ _ _ H5).
+        now auto.
+        auto.
+    Qed.
 
     Lemma simple_optimization_or_left (uq1:user_query) (uq2:user_query)
       (u:user) (db:database) (p:paper):
