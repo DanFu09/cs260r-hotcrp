@@ -889,7 +889,149 @@ Module HotCRP.
     Qed.
   End SimpleOptimization.
 
-  (* TODO: generalize policies *)
-  (* TODO: define a generalized optimization function *)
+  (********************************************************)
+  (* Generalized Boolean Policies *)
+  (********************************************************)
+  Section GeneralizedBooleanPolicy.
+    Inductive user_field : Set :=
+    | User_id: nat -> user_field
+    | User_email: string -> user_field
+    | User_team: nat -> user_field.
+
+    Fixpoint beq_user_field (field : user_field) (u : user) :=
+      match u with
+      | User u_id u_email u_team =>
+         match field with
+          | User_id i => beq_nat u_id i
+          | User_email e => if string_dec u_email e then true else false
+          | User_team t => beq_nat u_team t
+        end
+      end.
+
+    Fixpoint get_paper_field_nat (field : paper_field) (p : paper) :=
+      match p with
+      | Paper p_id _ p_team p_decision =>
+         match field with
+          | Paper_id _ => p_id
+          | Paper_title _ => 0
+          | Paper_team _ => p_team
+          | Paper_decision _ => p_decision
+        end
+      end.
+
+    Fixpoint get_user_field_nat (field : user_field) (u : user) :=
+      match u with
+      | User u_id _ u_team =>
+         match field with
+          | User_id _ => u_id
+          | User_email e => 0
+          | User_team _ => u_team
+        end
+      end.
+
+    (* Returns true if p.paper_field = u.user_field, and paper_field and
+    user_field have the same type *)
+    Fixpoint beq_paper_user_field (p_field: paper_field) (u_field:user_field)
+                                  (p: paper) (u: user) :=
+      match p with
+      | Paper p_id p_title p_team p_decision =>
+        match u with
+        | User u_id u_email u_team =>
+          match p_field, u_field with
+          | Paper_title t, User_email e => if string_dec p_title u_email
+                                            then true else false
+          | Paper_title _, _ => false
+          | _, User_email _ => false
+          | _, _ => beq_nat (get_paper_field_nat p_field p)
+                              (get_user_field_nat u_field u)
+          end
+        end
+      end.
+
+    Inductive boolean_exp : Set :=
+    | B_true: boolean_exp
+    | B_false: boolean_exp
+    | Paper_field_eq: paper_field -> boolean_exp
+    | Paper_field_neq: paper_field -> boolean_exp
+    | User_field_eq: user_field -> boolean_exp
+    | User_field_neq: user_field -> boolean_exp
+    | Paper_user_field_eq: paper_field -> user_field -> boolean_exp
+    | Paper_user_field_neq: paper_field -> user_field -> boolean_exp
+    | B_and: boolean_exp -> boolean_exp -> boolean_exp
+    | B_or: boolean_exp -> boolean_exp -> boolean_exp.
+
+    Fixpoint boolean_eval (b:boolean_exp) (p:paper) (u:user) : bool :=
+      match b with
+        | B_true => true
+        | B_false => false
+        | Paper_field_eq field => beq_field field p
+        | Paper_field_neq field => negb (beq_field field p)
+        | User_field_eq field => beq_user_field field u
+        | User_field_neq field => negb (beq_user_field field u)
+        | Paper_user_field_eq p_field u_field =>
+            beq_paper_user_field p_field u_field p u
+        | Paper_user_field_neq p_field u_field =>
+            negb (beq_paper_user_field p_field u_field p u)
+        | B_and b1 b2 => andb (boolean_eval b1 p u) (boolean_eval b2 p u)
+        | B_or b1 b2 => orb (boolean_eval b1 p u) (boolean_eval b2 p u)
+      end.
+
+    (* Boolean blacklist policy *)
+    Inductive bb_policy : Set :=
+    | BB_policy: forall (id_exp:boolean_exp) (title_exp:boolean_exp)
+                (team_exp:boolean_exp) (decision_exp:boolean_exp), bb_policy.
+    Hint Constructors bb_policy.
+
+    Fixpoint bb_policy_map (b:bb_policy) (p:paper) (u:user) : paper :=
+    match b with
+    | BB_policy id_exp title_exp team_exp decision_exp =>
+      match p with
+      | Paper p_id p_title p_team p_decision =>
+        let id_val := if boolean_eval id_exp p u then 0 else p_id in
+        let title_val := if boolean_eval title_exp p u
+                          then EmptyString else p_title in
+        let team_val := if boolean_eval team_exp p u then 0 else p_team in
+        let decision_val := if boolean_eval decision_exp p u
+                            then 0 else p_decision in
+        Paper id_val title_val team_val decision_val
+      end
+    end.
+
+    (* A definition of simple_policy as a bb_policy *)
+    Definition simple_bb_policy :=
+      BB_policy B_false B_false B_false
+        (Paper_user_field_eq (Paper_team 0) (User_team 0)).
+
+    Lemma simple_bb_policy_is_simple_policy :
+      forall p u,
+      bb_policy_map simple_bb_policy p u = simple_policy_map p u.
+    Proof.
+      intros; destruct p, u. cbn.
+      destruct (Nat.eq_dec team team0).
+      - rewrite <- Nat.eqb_eq in e; rewrite e; auto.
+      - rewrite <- Nat.eqb_neq in n; rewrite n; auto.
+    Qed.
+  End GeneralizedBooleanPolicy.
+
+  (********************************************************)
+  (* Generalized Boolean Optimizations *)
+  (********************************************************)
+  Section GeneralizedBooleanOptimization.
+    Fixpoint nothing_boolean_optimization
+      (policy:bb_policy) (uq:user_query) (u:user) :
+      (user_query * sql_query) :=
+      (uq, Sql_true).
+
+    Lemma nothing_boolean_optimization_correct :
+      forall u uq p bb_policy,
+      sql_query_func uq (bb_policy_map bb_policy p u) = 
+      andb (sql_query_func (fst (nothing_boolean_optimization bb_policy uq u))
+            (bb_policy_map bb_policy p u))
+      (sql_query_func (snd (nothing_boolean_optimization bb_policy uq u)) p).
+    Proof.
+      intros.
+      destruct uq, bb_policy0, u; cbn; auto; rewrite andb_true_r; auto.
+    Qed.
+  End GeneralizedBooleanOptimization.
 
 End HotCRP.
