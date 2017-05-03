@@ -330,7 +330,13 @@ Module HotCRP.
       rewrite <- negb_true_iff in n0.
       rewrite orb_true_iff.
       now auto.
-      
+      rewrite andb_true_iff in *.
+      destruct_pairs.
+      firstorder.
+      rewrite orb_true_iff in *.
+      destruct H.
+      firstorder.
+      firstorder.
     Qed.
 
     Lemma simple_optimization_and (uq1:user_query) (uq2:user_query)
@@ -434,8 +440,9 @@ Module HotCRP.
         rewrite filter_In.
         split;auto.
         rewrite <- H in H5.
+        pose (help _ _ _ H5).
         (* Induction? *)
-        admit.
+        now auto.
         auto.
         pose (IHuq2_2 H5).
         firstorder.
@@ -450,39 +457,10 @@ Module HotCRP.
         split;auto.
         rewrite <- H in H5.
         (* Induction? *)
-        admit.
+        pose (help _ _ _ H5).
+        now auto.
         auto.
-        Restart.
-        rewrite orb_true_iff.
-        simpl in *.
-        rewrite orb_true_iff in *.
-        destruct H5.
-        clear IHuq2_2.
-        rewrite in_map_iff in *.
-        firstorder.
-        rewrite filter_In in *.
-        simpl in *.
-        rewrite orb_true_iff in *.
-        destruct_pairs.
-        specialize (H6 x1).
-        rewrite filter_In in H6.
-        destruct H9.
-        firstorder.
-        (* shouldnt I be trying to find a contradiction here? *)
-        admit.
-        clear IHuq2_1.
-        rewrite in_map_iff in *.
-        firstorder.
-        rewrite filter_In in *.
-        simpl in *.
-        rewrite orb_true_iff in *.
-        destruct_pairs.
-        specialize (H6 x1).
-        rewrite filter_In in H6.
-        destruct H9.
-        admit.
-        firstorder.
-    Admitted.
+    Qed.
 
     Lemma simple_optimization_or_left (uq1:user_query) (uq2:user_query)
       (u:user) (db:database) (p:paper):
