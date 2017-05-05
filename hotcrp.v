@@ -955,10 +955,10 @@ Module HotCRP.
     | Paper_field_neq: paper_field -> boolean_exp
     | User_field_eq: user_field -> boolean_exp
     | User_field_neq: user_field -> boolean_exp
-    (*
+    
     | Paper_user_field_eq: paper_field -> user_field -> boolean_exp
     | Paper_user_field_neq: paper_field -> user_field -> boolean_exp
-    *)
+    
     | B_and: boolean_exp -> boolean_exp -> boolean_exp
     | B_or: boolean_exp -> boolean_exp -> boolean_exp.
 
@@ -970,12 +970,12 @@ Module HotCRP.
         | Paper_field_neq field => negb (beq_field field p)
         | User_field_eq field => beq_user_field field u
         | User_field_neq field => negb (beq_user_field field u)
-        (*
+        
         | Paper_user_field_eq p_field u_field =>
             beq_paper_user_field p_field u_field p u
         | Paper_user_field_neq p_field u_field =>
             negb (beq_paper_user_field p_field u_field p u)
-        *)
+        
         | B_and b1 b2 => andb (boolean_eval b1 p u) (boolean_eval b2 p u)
         | B_or b1 b2 => orb (boolean_eval b1 p u) (boolean_eval b2 p u)
       end.
@@ -1001,7 +1001,8 @@ Module HotCRP.
       end
     end.
 
-    (* A definition of simple_policy as a bb_policy 
+    
+    (* A definition of simple_policy as a bb_policy *)
     Definition simple_bb_policy :=
       BB_policy B_false B_false B_false
         (Paper_user_field_eq (Paper_team 0) (User_team 0)). 
@@ -1015,7 +1016,7 @@ Module HotCRP.
       - rewrite <- Nat.eqb_eq in e; rewrite e; auto.
       - rewrite <- Nat.eqb_neq in n; rewrite n; auto.
     Qed.
-    *)
+    
   End GeneralizedBooleanPolicy.
 
   (********************************************************)
@@ -1155,19 +1156,66 @@ Module HotCRP.
     rewrite filter_In in *; destruct_pairs; now auto.
   Qed.
 
-  (* Now start writing something that can move the entire query inside. This seems like pain. *)
-    Fixpoint bexp_to_query (exp : boolean_exp) (u : user) : user_query :=
+Fixpoint negate_query (q : user_query) : user_query :=
+      match q with
+      | Sql_true => Sql_false
+      | Sql_false => Sql_true
+      | Field_eq field => Field_neq field
+      | Field_neq field => Field_eq field
+      | And q1 q2 => Or (negate_query q1) (negate_query q2)
+      | Or q1 q2 => And (negate_query q1) (negate_query q2)
+      end.
+
+  Lemma negate_correct_true:
+    forall q p,
+      sql_query_func q p = true <-> sql_query_func (negate_query q) p = false.
+  Proof.
+    split;intros.
+    induction q; simpl in *; auto.
+    rewrite negb_false_iff; now auto.
+    rewrite negb_true_iff in H; now auto.
+    rewrite andb_true_iff in H.
+    now firstorder.
+    rewrite orb_true_iff in H.
+    rewrite andb_false_iff.
+    now firstorder.
+    induction q; simpl in *; auto.
+    rewrite negb_false_iff in H; now auto.
+    rewrite negb_true_iff; now auto.
+    rewrite orb_false_iff in H.
+    rewrite andb_true_iff.
+    now firstorder.
+    rewrite andb_false_iff in H.
+    now firstorder.
+  Qed.
+
+  Lemma negate_correct_false:
+    forall q p,
+      sql_query_func q p = false <-> sql_query_func (negate_query q) p = true.
+  Proof.
+    split;intros.
+    induction q; simpl in *; auto.
+    rewrite negb_true_iff; now auto.
+    rewrite negb_false_iff in H; now auto.
+    rewrite andb_false_iff in H.
+    now firstorder.
+    rewrite orb_false_iff in H.
+    rewrite andb_true_iff.
+    now firstorder.
+    induction q; simpl in *; auto.
+    rewrite negb_true_iff in H; now auto.
+    rewrite negb_false_iff; now auto.
+    rewrite orb_true_iff in H.
+    rewrite andb_false_iff.
+    now firstorder.
+    rewrite andb_true_iff in H.
+    now firstorder.
+  Qed.
+
+  Fixpoint paper_user_field_eq_to_query (pfield : paper_field) (ufield : user_field) (u : user) :=
     match u with
     | User uid uemail uteam =>
-      match exp with
-      | B_true => Sql_true
-      | B_false => Sql_false
-      | Paper_field_eq field => Field_eq field
-      | Paper_field_neq field => Field_neq field
-      | User_field_eq ufield => if beq_user_field ufield u then Sql_true else Sql_false
-      | User_field_neq ufield => if beq_user_field ufield u then Sql_false else Sql_true
-      (* | Paper_user_field_eq pfield ufield => 
-        match pfield, ufield with
+       match pfield, ufield with
         | Paper_title t, User_email e =>
           Field_eq (Paper_title uemail)
         | Paper_title _, _ => Sql_false
@@ -1179,23 +1227,60 @@ Module HotCRP.
           | User_team t => Or (Field_eq (Paper_id uteam)) (Or (Field_eq (Paper_team uteam)) (Field_eq (Paper_decision uteam)))
           end
         end
-      | Paper_user_field_neq pfield ufield => 
-        match pfield, ufield with
-        | Paper_title t, User_email e =>
-          Field_neq (Paper_title uemail)
-        | Paper_title _, _ => Sql_true
-        | _, User_email _ => Sql_true
-        | _, _ => (* case where both are nats *)
-          match ufield with
-          | User_id i => And (Field_neq (Paper_id uid)) (And (Field_neq (Paper_team uid)) (Field_neq (Paper_decision uid)))
-          | User_email e => Sql_false (* this case should never get reached *)
-          | User_team t => And (Field_neq (Paper_id uteam)) (And (Field_neq (Paper_team uteam)) (Field_neq (Paper_decision uteam)))
-          end
-        end *)
+    end.
+  (* Now start writing something that can move the entire query inside. This seems like pain. *)
+    Fixpoint bexp_to_query (exp : boolean_exp) (u : user) : user_query :=
+    match u with
+    | User uid uemail uteam =>
+      match exp with
+      | B_true => Sql_true
+      | B_false => Sql_false
+      | Paper_field_eq field => Field_eq field
+      | Paper_field_neq field => Field_neq field
+      | User_field_eq ufield => if beq_user_field ufield u then Sql_true else Sql_false
+      | User_field_neq ufield => if beq_user_field ufield u then Sql_false else Sql_true
+       | Paper_user_field_eq pfield ufield => paper_user_field_eq_to_query pfield ufield u
+      | Paper_user_field_neq pfield ufield => negate_query (paper_user_field_eq_to_query pfield ufield u)
       | B_and exp1 exp2 => And (bexp_to_query exp1 u) (bexp_to_query exp2 u)
       | B_or exp1 exp2 => Or (bexp_to_query exp1 u) (bexp_to_query exp2 u)
       end
     end.
+
+    Lemma beq_paper_user_field_opt_correct (pf : paper_field) (uf : user_field) (p: paper) (u: user):
+      beq_paper_user_field pf uf p u = true <-> sql_query_func (bexp_to_query (Paper_user_field_eq pf uf) u) p = true.
+    Proof.
+      split;intros;destruct p, u.
+      (* one direction *)
+      destruct uf;
+      destruct pf;
+      simpl in *;
+      try rewrite orb_true_iff;
+      try rewrite orb_true_iff;
+      auto.
+      (* hard direction *)
+      simpl in *.
+      destruct pf;
+      destruct uf.
+      simpl in *.
+      admit.
+    Admitted.
+    
+    Lemma negb_beq_paper_user_field_opt_correct (pf : paper_field) (uf : user_field) (p: paper) (u: user):
+      negb (beq_paper_user_field pf uf p u) = true <-> sql_query_func (bexp_to_query (Paper_user_field_neq pf uf) u) p = true.
+    Proof.
+      rewrite negb_true_iff.
+      pose (beq_paper_user_field_opt_correct pf uf p u).
+      destruct u.
+      simpl.
+      rewrite <- negate_correct_false.
+      simpl in i.
+      pose (beq_paper_user_field pf uf p (User id email team) = true).
+      pose (sql_query_func (paper_user_field_eq_to_query pf uf (User id email team)) p = true).
+      pose (Decidable.contrapositive P P0).
+      assert (Decidable.decidable P).
+      auto.
+      
+    Admitted.
     
     Lemma bexp_to_query_correct:
       forall exp p u,
@@ -1212,16 +1297,14 @@ Module HotCRP.
       rewrite negb_true_iff in H.
       rewrite H.
       unfold sql_query_func; now auto.
-      (* (* eq paper user field case *)
-      destruct u;
-      destruct p;
-      simpl in *;
-      try rewrite orb_true_iff;
-      try rewrite orb_true_iff;
-      auto.
+      (* eq paper user field case *)
+      pose (beq_paper_user_field_opt_correct p u (Paper id title team decision)
+      (User id0 email team0)).
+      now firstorder.
       (* neq paper user field case *)
-      admit.
-      *)
+      pose (negb_beq_paper_user_field_opt_correct p u (Paper id title team decision)
+      (User id0 email team0)).
+      now firstorder.
       (* and *)
       rewrite andb_true_iff in *.
       now firstorder.
@@ -1279,57 +1362,20 @@ Module HotCRP.
       apply Nat.eqb_neq in n0.
       rewrite negb_true_iff.
       now auto.
-      (* paper user field eq *)
-      (*
-      destruct u;
-      destruct p;
-      simpl in *.
-      try rewrite orb_true_iff;
-      try rewrite orb_true_iff;
-      auto.
-      admit.
-      (* paper user field neq *)
-      admit.
-      *)
+      (* eq paper user field case *)
+      pose (beq_paper_user_field_opt_correct p u (Paper id title team decision)
+      (User id0 email team0)).
+      now firstorder.
+      (* neq paper user field case *)
+      pose (negb_beq_paper_user_field_opt_correct p u (Paper id title team decision)
+      (User id0 email team0)).
+      now firstorder.
       (* and case *)
       rewrite andb_true_iff in *.
       now firstorder.
       rewrite orb_true_iff in *.
       now firstorder.
     Qed.
-    
-    Fixpoint negate_query (q : user_query) : user_query :=
-      match q with
-      | Sql_true => Sql_false
-      | Sql_false => Sql_true
-      | Field_eq field => Field_neq field
-      | Field_neq field => Field_eq field
-      | And q1 q2 => Or (negate_query q1) (negate_query q2)
-      | Or q1 q2 => And (negate_query q1) (negate_query q2)
-      end.
-      
-  Lemma negate_correct:
-    forall q p,
-      sql_query_func q p = true <-> sql_query_func (negate_query q) p = false.
-  Proof.
-    split;intros.
-    induction q; simpl in *; auto.
-    rewrite negb_false_iff; now auto.
-    rewrite negb_true_iff in H; now auto.
-    rewrite andb_true_iff in H.
-    now firstorder.
-    rewrite orb_true_iff in H.
-    rewrite andb_false_iff.
-    now firstorder.
-    induction q; simpl in *; auto.
-    rewrite negb_false_iff in H; now auto.
-    rewrite negb_true_iff; now auto.
-    rewrite orb_false_iff in H.
-    rewrite andb_true_iff.
-    now firstorder.
-    rewrite andb_false_iff in H.
-    now firstorder.
-  Qed.
   
   (* TODO write the things *)
 
