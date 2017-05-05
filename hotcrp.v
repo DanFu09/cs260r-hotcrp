@@ -955,8 +955,10 @@ Module HotCRP.
     | Paper_field_neq: paper_field -> boolean_exp
     | User_field_eq: user_field -> boolean_exp
     | User_field_neq: user_field -> boolean_exp
+    (*
     | Paper_user_field_eq: paper_field -> user_field -> boolean_exp
     | Paper_user_field_neq: paper_field -> user_field -> boolean_exp
+    *)
     | B_and: boolean_exp -> boolean_exp -> boolean_exp
     | B_or: boolean_exp -> boolean_exp -> boolean_exp.
 
@@ -968,10 +970,12 @@ Module HotCRP.
         | Paper_field_neq field => negb (beq_field field p)
         | User_field_eq field => beq_user_field field u
         | User_field_neq field => negb (beq_user_field field u)
+        (*
         | Paper_user_field_eq p_field u_field =>
             beq_paper_user_field p_field u_field p u
         | Paper_user_field_neq p_field u_field =>
             negb (beq_paper_user_field p_field u_field p u)
+        *)
         | B_and b1 b2 => andb (boolean_eval b1 p u) (boolean_eval b2 p u)
         | B_or b1 b2 => orb (boolean_eval b1 p u) (boolean_eval b2 p u)
       end.
@@ -997,10 +1001,10 @@ Module HotCRP.
       end
     end.
 
-    (* A definition of simple_policy as a bb_policy *)
+    (* A definition of simple_policy as a bb_policy 
     Definition simple_bb_policy :=
       BB_policy B_false B_false B_false
-        (Paper_user_field_eq (Paper_team 0) (User_team 0)).
+        (Paper_user_field_eq (Paper_team 0) (User_team 0)). 
 
     Lemma simple_bb_policy_is_simple_policy :
       forall p u,
@@ -1011,6 +1015,7 @@ Module HotCRP.
       - rewrite <- Nat.eqb_eq in e; rewrite e; auto.
       - rewrite <- Nat.eqb_neq in n; rewrite n; auto.
     Qed.
+    *)
   End GeneralizedBooleanPolicy.
 
   (********************************************************)
@@ -1161,36 +1166,137 @@ Module HotCRP.
       | Paper_field_neq field => Field_neq field
       | User_field_eq ufield => if beq_user_field ufield u then Sql_true else Sql_false
       | User_field_neq ufield => if beq_user_field ufield u then Sql_false else Sql_true
-      | Paper_user_field_eq pfield ufield => 
+      (* | Paper_user_field_eq pfield ufield => 
         match pfield, ufield with
         | Paper_title t, User_email e =>
-          Field_eq (Paper_title e)
+          Field_eq (Paper_title uemail)
         | Paper_title _, _ => Sql_false
         | _, User_email _ => Sql_false
         | _, _ => (* case where both are nats *)
           match ufield with
-          | User_id i => Or (Field_eq (Paper_id i)) (Or (Field_eq (Paper_team i)) (Field_eq (Paper_decision i)))
+          | User_id i => Or (Field_eq (Paper_id uid)) (Or (Field_eq (Paper_team uid)) (Field_eq (Paper_decision uid)))
           | User_email e => Sql_false (* this case should never get reached *)
-          | User_team t => Or (Field_eq (Paper_id t)) (Or (Field_eq (Paper_team t)) (Field_eq (Paper_decision t)))
+          | User_team t => Or (Field_eq (Paper_id uteam)) (Or (Field_eq (Paper_team uteam)) (Field_eq (Paper_decision uteam)))
           end
         end
       | Paper_user_field_neq pfield ufield => 
         match pfield, ufield with
         | Paper_title t, User_email e =>
-          Field_neq (Paper_title e)
+          Field_neq (Paper_title uemail)
         | Paper_title _, _ => Sql_true
         | _, User_email _ => Sql_true
         | _, _ => (* case where both are nats *)
           match ufield with
-          | User_id i => And (Field_neq (Paper_id i)) (And (Field_neq (Paper_team i)) (Field_neq (Paper_decision i)))
+          | User_id i => And (Field_neq (Paper_id uid)) (And (Field_neq (Paper_team uid)) (Field_neq (Paper_decision uid)))
           | User_email e => Sql_false (* this case should never get reached *)
-          | User_team t => And (Field_neq (Paper_id t)) (And (Field_neq (Paper_team t)) (Field_neq (Paper_decision t)))
+          | User_team t => And (Field_neq (Paper_id uteam)) (And (Field_neq (Paper_team uteam)) (Field_neq (Paper_decision uteam)))
           end
-        end
+        end *)
       | B_and exp1 exp2 => And (bexp_to_query exp1 u) (bexp_to_query exp2 u)
       | B_or exp1 exp2 => Or (bexp_to_query exp1 u) (bexp_to_query exp2 u)
       end
     end.
+    
+    Lemma bexp_to_query_correct:
+      forall exp p u,
+        boolean_eval exp p u = true <-> sql_query_func (bexp_to_query exp u) p = true.
+    Proof.
+      split;intros.
+      destruct p, u.
+      induction exp;
+      simpl in *; auto.
+      (* user field eq *)
+      rewrite H.
+      unfold sql_query_func; now auto.
+      (* user field neq *)
+      rewrite negb_true_iff in H.
+      rewrite H.
+      unfold sql_query_func; now auto.
+      (* (* eq paper user field case *)
+      destruct u;
+      destruct p;
+      simpl in *;
+      try rewrite orb_true_iff;
+      try rewrite orb_true_iff;
+      auto.
+      (* neq paper user field case *)
+      admit.
+      *)
+      (* and *)
+      rewrite andb_true_iff in *.
+      now firstorder.
+      (* or *)
+      rewrite orb_true_iff in *.
+      firstorder.
+      (* other direction *)
+      destruct p, u.
+      induction exp;
+      simpl in *; auto.
+      (* user field eq *)
+      destruct u;
+      simpl in *.
+      (* id field *)
+      destruct (Nat.eq_dec id0 n).
+      rewrite e in *.
+      rewrite <- beq_nat_refl; now auto.
+      apply Nat.eqb_neq in n0.
+      rewrite n0 in H.
+      simpl in H.
+      inversion H.
+      (* string field *)
+      destruct (string_dec email s).
+      auto.
+      simpl in H.
+      auto.
+      (* team field *)
+      destruct (Nat.eq_dec team0 n).
+      rewrite e in *.
+      rewrite <- beq_nat_refl; now auto.
+      apply Nat.eqb_neq in n0.
+      rewrite n0 in H.
+      simpl in H.
+      now inversion H.
+      (* neq user fields *)
+      destruct u;
+      simpl in *.
+      (* id field *)
+      destruct (Nat.eq_dec id0 n).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *.
+      simpl in *.
+      now auto.
+      apply Nat.eqb_neq in n0.
+      rewrite negb_true_iff.
+      now auto.
+      (* string field *)
+      destruct (string_dec email s);
+      simpl in *;
+      auto.
+      (* team field *)
+      destruct (Nat.eq_dec team0 n).
+      rewrite e in *.
+      rewrite <- beq_nat_refl in *; now auto.
+      apply Nat.eqb_neq in n0.
+      rewrite negb_true_iff.
+      now auto.
+      (* paper user field eq *)
+      (*
+      destruct u;
+      destruct p;
+      simpl in *.
+      try rewrite orb_true_iff;
+      try rewrite orb_true_iff;
+      auto.
+      admit.
+      (* paper user field neq *)
+      admit.
+      *)
+      (* and case *)
+      rewrite andb_true_iff in *.
+      now firstorder.
+      rewrite orb_true_iff in *.
+      now firstorder.
+    Qed.
     
     Fixpoint negate_query (q : user_query) : user_query :=
       match q with
