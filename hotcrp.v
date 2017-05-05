@@ -1033,5 +1033,198 @@ Module HotCRP.
       destruct uq, bb_policy0, u; cbn; auto; rewrite andb_true_r; auto.
     Qed.
   End GeneralizedBooleanOptimization.
+  
+  Fixpoint exp_is_false (exp : boolean_exp) : bool :=
+    match exp with
+    | B_false => true
+    | _ => false
+    end.
+
+  (* simple opt that says if we will overwrite a field with a policy, 
+    it is unsafe to filter on that as an inner query *)
+  Fixpoint simple_opt_inner (b : bb_policy) (q : user_query) : user_query :=
+    match b with
+    | BB_policy id_exp title_exp team_exp decision_exp => 
+      match q with
+      | Sql_true => Sql_true
+      | Sql_false => Sql_false
+      | Field_eq field => 
+        match field with
+          | Paper_id _ => if exp_is_false id_exp then q else Sql_true
+          | Paper_title _ => if exp_is_false title_exp then q else Sql_true
+          | Paper_team _ => if exp_is_false team_exp then q else Sql_true
+          | Paper_decision _ => if exp_is_false decision_exp then q else Sql_true
+        end
+      | Field_neq field => 
+        match field with
+          | Paper_id _ => if exp_is_false id_exp then q else Sql_true
+          | Paper_title _ => if exp_is_false title_exp then q else Sql_true
+          | Paper_team _ => if exp_is_false team_exp then q else Sql_true
+          | Paper_decision _ => if exp_is_false decision_exp then q else Sql_true
+        end
+      | And q1 q2 => And (simple_opt_inner b q1) (simple_opt_inner b q2)
+      | Or q1 q2 => Or (simple_opt_inner b q1) (simple_opt_inner b q2)
+      end
+    end.
+  
+  (* This is proof that our simple opt doesnt eat anything. *)
+  Lemma simple_opt_inner_doesnt_lose:
+    forall b uq p db,
+      In p (sql_query_filter uq db) -> In p (sql_query_filter (simple_opt_inner b uq) db).
+  Proof.
+    intros.
+    induction uq.
+    unfold sql_query_filter in *.
+    rewrite filter_In in *.
+    simpl in *.
+    destruct b.
+    auto.
+    unfold sql_query_filter in *.
+    rewrite filter_In in *.
+    simpl in *.
+    destruct b.
+    auto.
+    (* Field eq case *)
+    unfold sql_query_filter in *.
+    rewrite filter_In in *.
+    firstorder.
+    simpl in *.
+    destruct b.
+    destruct p0.
+    simpl in *.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false id_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false title_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false team_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false decision_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    (* Field neq case, exact copy of eq_case - todo make smaller *)
+    unfold sql_query_filter in *.
+    rewrite filter_In in *.
+    firstorder.
+    simpl in *.
+    destruct b.
+    destruct p0.
+    simpl in *.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false id_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false title_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false team_exp));
+    rewrite e;
+    simpl;
+    now auto.
+    destruct (Sumbool.sumbool_of_bool (exp_is_false decision_exp));
+    rewrite e; simpl; now auto.
+    (* And case *)
+    unfold sql_query_filter in *.
+    destruct b.
+    rewrite filter_In in *.
+    simpl in *.
+    rewrite andb_true_iff in *.
+    destruct_pairs.
+    firstorder;
+    rewrite filter_In in *; destruct_pairs; now auto.
+    (* Or case *)
+    unfold sql_query_filter in *.
+    destruct b.
+    rewrite filter_In in *.
+    simpl in *.
+    rewrite orb_true_iff in *.
+    destruct_pairs.
+    firstorder;
+    rewrite filter_In in *; destruct_pairs; now auto.
+  Qed.
+
+  (* Now start writing something that can move the entire query inside. This seems like pain. *)
+    Fixpoint bexp_to_query (exp : boolean_exp) (u : user) : user_query :=
+    match u with
+    | User uid uemail uteam =>
+      match exp with
+      | B_true => Sql_true
+      | B_false => Sql_false
+      | Paper_field_eq field => Field_eq field
+      | Paper_field_neq field => Field_neq field
+      | User_field_eq ufield => if beq_user_field ufield u then Sql_true else Sql_false
+      | User_field_neq ufield => if beq_user_field ufield u then Sql_false else Sql_true
+      | Paper_user_field_eq pfield ufield => 
+        match pfield, ufield with
+        | Paper_title t, User_email e =>
+          Field_eq (Paper_title e)
+        | Paper_title _, _ => Sql_false
+        | _, User_email _ => Sql_false
+        | _, _ => (* case where both are nats *)
+          match ufield with
+          | User_id i => Or (Field_eq (Paper_id i)) (Or (Field_eq (Paper_team i)) (Field_eq (Paper_decision i)))
+          | User_email e => Sql_false (* this case should never get reached *)
+          | User_team t => Or (Field_eq (Paper_id t)) (Or (Field_eq (Paper_team t)) (Field_eq (Paper_decision t)))
+          end
+        end
+      | Paper_user_field_neq pfield ufield => 
+        match pfield, ufield with
+        | Paper_title t, User_email e =>
+          Field_neq (Paper_title e)
+        | Paper_title _, _ => Sql_true
+        | _, User_email _ => Sql_true
+        | _, _ => (* case where both are nats *)
+          match ufield with
+          | User_id i => And (Field_neq (Paper_id i)) (And (Field_neq (Paper_team i)) (Field_neq (Paper_decision i)))
+          | User_email e => Sql_false (* this case should never get reached *)
+          | User_team t => And (Field_neq (Paper_id t)) (And (Field_neq (Paper_team t)) (Field_neq (Paper_decision t)))
+          end
+        end
+      | B_and exp1 exp2 => And (bexp_to_query exp1 u) (bexp_to_query exp2 u)
+      | B_or exp1 exp2 => Or (bexp_to_query exp1 u) (bexp_to_query exp2 u)
+      end
+    end.
+    
+    Fixpoint negate_query (q : user_query) : user_query :=
+      match q with
+      | Sql_true => Sql_false
+      | Sql_false => Sql_true
+      | Field_eq field => Field_neq field
+      | Field_neq field => Field_eq field
+      | And q1 q2 => Or (negate_query q1) (negate_query q2)
+      | Or q1 q2 => And (negate_query q1) (negate_query q2)
+      end.
+      
+  Lemma negate_correct:
+    forall q p,
+      sql_query_func q p = true <-> sql_query_func (negate_query q) p = false.
+  Proof.
+    split;intros.
+    induction q; simpl in *; auto.
+    rewrite negb_false_iff; now auto.
+    rewrite negb_true_iff in H; now auto.
+    rewrite andb_true_iff in H.
+    now firstorder.
+    rewrite orb_true_iff in H.
+    rewrite andb_false_iff.
+    now firstorder.
+    induction q; simpl in *; auto.
+    rewrite negb_false_iff in H; now auto.
+    rewrite negb_true_iff; now auto.
+    rewrite orb_false_iff in H.
+    rewrite andb_true_iff.
+    now firstorder.
+    rewrite andb_false_iff in H.
+    now firstorder.
+  Qed.
+  
+  (* TODO write the things *)
 
 End HotCRP.
