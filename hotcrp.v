@@ -1954,4 +1954,70 @@ Module HotCRP.
     symmetry; [ apply bb_opt_true_first | apply bb_opt_false_correct ]; auto.
   Qed.
 
+  (********************************************************)
+  (* Generalized SQL Queries *)
+  (********************************************************)
+
+  (* Bring not back into the SQL queries *)
+  Inductive gen_sql_query : Set :=
+    | Gen_true: gen_sql_query
+    | Gen_false: gen_sql_query
+    | Gen_field_eq: paper_field -> gen_sql_query
+    | Gen_and: gen_sql_query -> gen_sql_query -> gen_sql_query
+    | Gen_or: gen_sql_query -> gen_sql_query -> gen_sql_query
+    | Gen_not: gen_sql_query -> gen_sql_query.
+
+  Fixpoint gen_sql_query_func (q:gen_sql_query) (p:paper) : bool :=
+    match q with
+      | Gen_true => true
+      | Gen_false => false
+      | Gen_field_eq field => beq_field field p
+      | Gen_and q1 q2 => andb (gen_sql_query_func q1 p) (gen_sql_query_func q2 p)
+      | Gen_or q1 q2 => orb (gen_sql_query_func q1 p) (gen_sql_query_func q2 p)
+      | Gen_not q1 => negb (gen_sql_query_func q1 p)
+    end.
+
+  Fixpoint gen_to_sql (q:gen_sql_query) : sql_query :=
+    match q with
+      | Gen_true => Sql_true
+      | Gen_false => Sql_false
+      | Gen_field_eq field => Field_eq field
+      | Gen_and q1 q2 => And (gen_to_sql q1) (gen_to_sql q2)
+      | Gen_or q1 q2 => Or (gen_to_sql q1) (gen_to_sql q2)
+      | Gen_not q1 => negate_query (gen_to_sql q1)
+    end.
+
+  Lemma gen_to_sql_correct :
+    forall p q, sql_query_func (gen_to_sql q) p = gen_sql_query_func q p.
+  Proof.
+    intros; induction q; cbn; auto.
+    1, 2: rewrite IHq1; rewrite IHq2; auto.
+    destruct (bool_dec (sql_query_func (gen_to_sql q) p) true).
+    - rewrite e in IHq; rewrite negate_correct_true in e;
+      rewrite e; rewrite <- IHq; now cbn.
+    - apply not_true_is_false in n;
+      rewrite n in IHq; rewrite negate_correct_false in n;
+      rewrite n; rewrite <- IHq; now cbn.
+  Qed.
+
+  Notation gen_user_query := gen_sql_query.
+
+  (* bb_opt for general user queries *)
+  Fixpoint bb_opt_inner_gen_uq (policy:bb_policy) (uq:gen_user_query) (u:user) :
+    (sql_query) := bb_opt_inner policy (gen_to_sql uq) u.
+  Fixpoint bb_opt_outer_gen_uq (policy:bb_policy) (uq:gen_user_query) (u:user) :
+    (sql_query) := bb_opt_outer policy (gen_to_sql uq) u.
+
+  (* Proof that the bb_opt for general user queries is correct *)
+  Lemma bb_opt_gen_uq_correct :
+    forall u uq p policy,
+    gen_sql_query_func uq (bb_policy_map policy p u) =
+    andb (sql_query_func (bb_opt_outer_gen_uq policy uq u) (bb_policy_map policy p u))
+      (sql_query_func (bb_opt_inner_gen_uq policy uq u) p).
+  Proof.
+    intros. unfold bb_opt_outer_gen_uq, bb_opt_inner_gen_uq; destruct policy.
+    rewrite <- gen_to_sql_correct.
+    rewrite bb_opt_correct; auto.
+  Qed.
+
 End HotCRP.
