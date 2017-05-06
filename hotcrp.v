@@ -1209,6 +1209,38 @@ Module HotCRP.
   Fixpoint paper_user_field_eq_to_query (pfield : paper_field) (ufield : user_field) (u : user) :=
     match u with
     | User uid uemail uteam =>
+       match pfield with
+        | Paper_id pid =>
+          match ufield with
+          | User_id _ => Field_eq (Paper_id uid)
+          | User_email _ => Sql_false (* never reached *)
+          | User_team _ => Field_eq (Paper_id uteam)
+          end
+        | Paper_title ptitle =>
+          match ufield with
+          | User_id _ => Sql_false(* never reached *)
+          | User_email _ => Field_eq (Paper_title uemail)
+          | User_team _ => Sql_false (* never reached *)
+          end
+        | Paper_team pteam =>
+          match ufield with
+          | User_id _ => Field_eq (Paper_team uid)
+          | User_email _ => Sql_false (* never reached *)
+          | User_team _ => Field_eq (Paper_team uteam)
+          end
+        | Paper_decision pdecision =>
+          match ufield with
+          | User_id _ => Field_eq (Paper_decision uid)
+          | User_email _ => Sql_false (* never reached *)
+          | User_team _ => Field_eq (Paper_decision uteam)
+          end
+        end
+    end.
+
+  (*
+  Fixpoint paper_user_field_eq_to_query (pfield : paper_field) (ufield : user_field) (u : user) :=
+    match u with
+    | User uid uemail uteam =>
        match pfield, ufield with
         | Paper_title t, User_email e =>
           Field_eq (Paper_title uemail)
@@ -1222,6 +1254,7 @@ Module HotCRP.
           end
         end
     end.
+    *)
   (* Now start writing something that can move the entire query inside. This seems like pain. *)
   Fixpoint bexp_to_query (exp : boolean_exp) (u : user) : user_query :=
     match u with
@@ -1243,39 +1276,23 @@ Module HotCRP.
   Lemma beq_paper_user_field_opt_correct (pf : paper_field) (uf : user_field) (p: paper) (u: user):
     beq_paper_user_field pf uf p u = true <-> sql_query_func (bexp_to_query (Paper_user_field_eq pf uf) u) p = true.
   Proof.
-    split;intros;destruct p, u.
-    (* one direction *)
+    split;intros;destruct p, u;
     destruct uf;
     destruct pf;
     simpl in *;
-    try rewrite orb_true_iff;
-    try rewrite orb_true_iff;
     auto.
-    (* hard direction *)
-    simpl in *.
-    destruct pf;
-    destruct uf.
-    simpl in *.
-    admit.
-  Admitted.
+  Qed.
 
   Lemma negb_beq_paper_user_field_opt_correct (pf : paper_field) (uf : user_field) (p: paper) (u: user):
     negb (beq_paper_user_field pf uf p u) = true <-> sql_query_func (bexp_to_query (Paper_user_field_neq pf uf) u) p = true.
   Proof.
-    rewrite negb_true_iff.
-    pose (beq_paper_user_field_opt_correct pf uf p u).
-    destruct u.
-    simpl.
-    rewrite <- negate_correct_false.
-    simpl in i.
-    pose (beq_paper_user_field pf uf p (User id email team) = true).
-    pose (sql_query_func (paper_user_field_eq_to_query pf uf (User id email team)) p = true).
-    pose (Decidable.contrapositive P P0).
-    assert (Decidable.decidable P).
-    auto.
-    
-  Admitted.
-  
+   split;intros;destruct p, u;
+  destruct uf;
+  destruct pf;
+  simpl in *;
+  auto.
+  Qed.
+
   Lemma bexp_to_query_correct:
     forall exp p u,
       boolean_eval exp p u = true <-> sql_query_func (bexp_to_query exp u) p = true.
