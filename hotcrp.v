@@ -2020,4 +2020,7 @@ Module HotCRP.
     rewrite bb_opt_correct; auto.
   Qed.
 
+  (* TODO: Generalized black/white lists? *)
+  (* TODO: Generalized list membership? *)
+
 End HotCRP.
