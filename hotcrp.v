@@ -1716,7 +1716,209 @@ Module HotCRP.
       (sql_query_func (bb_opt_inner policy uq u) p) = true ->
     sql_query_func uq (bb_policy_map policy p u) = true.
   Proof.
-  Admitted.
+    intros.
+    rewrite andb_true_iff in H.
+    destruct policy, p.
+    destruct_pairs.
+    clear H.
+    induction uq.
+    simpl.
+    auto.
+    simpl in *.
+    auto.
+    (* Field_eq case*)
+    unfold bb_opt_inner in H0;
+    unfold bb_policy_map;
+    destruct p;
+    simpl in *.
+    (* id *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    now auto.
+    destruct (boolean_eval id_exp (Paper id title team decision) u);auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    (* title *)
+    destruct (string_dec s "").
+    simpl in H0.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    rewrite e.
+    now auto.
+    destruct (boolean_eval title_exp (Paper id title team decision) u).
+    rewrite e; now auto.
+    now auto.
+    simpl in *.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    (* team *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    now auto.
+    destruct (boolean_eval team_exp (Paper id title team decision) u);auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    (* decision *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    now auto.
+    destruct (boolean_eval decision_exp (Paper id title team decision) u);auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    (* Field neq *)
+    unfold bb_opt_inner in H0;
+    unfold bb_policy_map;
+    destruct p;
+    simpl in *.
+    (* id *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    destruct (boolean_eval id_exp (Paper id title team decision) u);auto.
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    (* title *)
+    destruct (string_dec s "").
+    simpl in H0.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    simpl in *.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    destruct (string_dec "" s); now auto.
+    destruct (boolean_eval title_exp (Paper id title team decision) u).
+    destruct (string_dec "" s); now auto.
+    now auto.
+    (* team *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    destruct (boolean_eval team_exp (Paper id title team decision) u).
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    now auto.
+    (* decision *)
+    destruct (Nat.eq_dec n 0).
+    rewrite e in *.
+    rewrite <- beq_nat_refl in H0.
+    simpl in *.
+    rewrite andb_true_iff in H0.
+    destruct_pairs.
+    rewrite <- negate_correct_false in H.
+    rewrite <- bexp_to_query_correct_false in H.
+    rewrite H.
+    now auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0 in H0.
+    simpl in H0.
+    rewrite orb_true_iff in H0.
+    destruct H0.
+    rewrite <- bexp_to_query_correct in H.
+    rewrite H.
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    destruct (boolean_eval decision_exp (Paper id title team decision) u).
+    rewrite negb_true_iff.
+    rewrite beq_nat_sym.
+    now auto.
+    now auto.
+    (* and case *)
+    simpl in *.
+    rewrite andb_true_iff in *.
+    now firstorder.
+    (* or case *)
+    simpl in *.
+    rewrite orb_true_iff in *.
+    now firstorder.
+  Qed.
 
   Lemma bb_opt_true_correct :
     forall u uq p policy,
