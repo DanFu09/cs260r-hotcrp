@@ -1150,6 +1150,17 @@ Module HotCRP.
     rewrite filter_In in *; destruct_pairs; now auto.
   Qed.
 
+  Lemma neg_bool_iff:
+    forall x y, (x = true <-> y = true) <-> (x = false <-> y = false).
+  Proof.
+    split;intros;split;
+    destruct (Sumbool.sumbool_of_bool x);
+    destruct (Sumbool.sumbool_of_bool y);
+    inversion H;
+    subst;
+    firstorder.
+  Qed.
+
   Fixpoint negate_query (q : user_query) : user_query :=
       match q with
       | Sql_true => Sql_false
@@ -1388,6 +1399,16 @@ Module HotCRP.
     now firstorder.
   Qed.
 
+  Lemma bexp_to_query_correct_false:
+    forall exp p u,
+      boolean_eval exp p u = false <-> sql_query_func (bexp_to_query exp u) p = false.
+  Proof.
+    intros.
+    pose (bexp_to_query_correct exp p u).
+    rewrite neg_bool_iff in i.
+    auto.
+  Qed.
+
   (* Pair of functions that implements our final optimization *)
   Fixpoint bb_opt_outer (policy:bb_policy) (uq:user_query) (u:user) :
     (sql_query) := Sql_true.
@@ -1459,7 +1480,235 @@ Module HotCRP.
     andb (sql_query_func (bb_opt_outer policy uq u) (bb_policy_map policy p u))
       (sql_query_func (bb_opt_inner policy uq u) p) = true.
   Proof.
-  Admitted.
+    intros.
+    rewrite andb_true_iff.
+    split.
+    destruct policy.
+    unfold bb_opt_outer.
+    simpl.
+    auto.
+    destruct policy.
+    unfold bb_opt_inner.
+    induction uq.
+    (* True case *)
+    simpl in *.
+    auto.
+    (* False case *)
+    simpl in *.
+    auto.
+    (* Field_eq case *)
+    simpl in *.
+    destruct p.
+    destruct p0;
+    simpl in *.
+    (* id *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval id_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite Nat.eqb_eq in H.
+    rewrite H.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    rewrite Nat.eqb_eq in H.
+    destruct (Nat.eq_dec n 0).
+    rewrite e0 in *.
+    rewrite H.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    now auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0.
+    simpl.
+    rewrite andb_true_iff.
+    rewrite H in *.
+    rewrite <- beq_nat_refl.
+    rewrite <- negate_correct_false.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* email - fml *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval title_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    destruct (string_dec "" s).
+    destruct (string_dec s ""). (* WHY do I have to do thi????? *)
+    simpl in *.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    subst.
+    now auto.
+    now auto.
+    rewrite e in *.
+    destruct (string_dec s "").
+    simpl in *.
+    rewrite orb_true_iff.
+    now auto.
+    simpl in *.
+    rewrite andb_true_iff.
+    rewrite <- negate_correct_false.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* team *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval team_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite beq_nat_true_iff in H.
+    rewrite H in *.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    destruct n.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    now auto.
+    simpl.
+    rewrite andb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    rewrite <- negate_correct_false.
+    now auto.
+    (* decision *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval decision_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite beq_nat_true_iff in H.
+    rewrite H in *.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    destruct n.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite orb_true_iff.
+    now auto.
+    simpl.
+    rewrite andb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    rewrite <- negate_correct_false.
+    now auto.
+    (* field neq cases *)
+    simpl in *.
+    destruct p.
+    destruct p0;
+    simpl in *.
+    (* id *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval id_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite negb_true_iff in H.
+    rewrite beq_nat_sym in H.
+    rewrite H.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    rewrite negb_true_iff in H.
+    destruct (Nat.eq_dec n 0).
+    rewrite e0 in *.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite andb_true_iff.
+    rewrite <- negate_correct_false.
+    rewrite negb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    apply beq_nat_false_iff in n0.
+    rewrite n0.
+    simpl.
+    rewrite orb_true_iff.
+    rewrite H in *.
+    rewrite negb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* title - fml *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval title_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite negb_true_iff in H.
+    destruct (string_dec "" s);
+    destruct (string_dec s ""). (* WHY do I have to do thi????? *)
+    simpl in *.
+    rewrite andb_true_iff.
+    rewrite negb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    subst.
+    now auto.
+    now auto.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    destruct (string_dec s "").
+    simpl in *.
+    rewrite andb_true_iff.
+    rewrite <- negate_correct_false.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    simpl in *.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* team *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval team_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite negb_true_iff in H.
+    rewrite beq_nat_sym in H.
+    rewrite H in *.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    destruct n.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite andb_true_iff.
+    rewrite <- negate_correct_false.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* decision *)
+    destruct (Sumbool.sumbool_of_bool (boolean_eval decision_exp (Paper id title team decision) u)).
+    rewrite e in *.
+    rewrite negb_true_iff in H.
+    rewrite beq_nat_sym in H.
+    rewrite H in *.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct in e.
+    now auto.
+    rewrite e in *.
+    destruct n.
+    rewrite <- beq_nat_refl.
+    simpl.
+    rewrite andb_true_iff.
+    rewrite <- negate_correct_false.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    simpl.
+    rewrite orb_true_iff.
+    apply bexp_to_query_correct_false in e.
+    now auto.
+    (* and case*)
+    simpl in *.
+    rewrite andb_true_iff in *.
+    now firstorder.
+    (* or case*)
+    simpl in *.
+    rewrite orb_true_iff in *.
+    now firstorder.
+  Qed.
 
   Lemma bb_opt_true_second :
   forall u uq p policy,
@@ -1469,13 +1718,28 @@ Module HotCRP.
   Proof.
   Admitted.
 
+  Lemma bb_opt_true_correct :
+    forall u uq p policy,
+    sql_query_func uq (bb_policy_map policy p u) = true <->
+    andb (sql_query_func (bb_opt_outer policy uq u) (bb_policy_map policy p u))
+      (sql_query_func (bb_opt_inner policy uq u) p) = true.
+  Proof.
+    split;intros.
+    apply bb_opt_true_first; now auto.
+    apply bb_opt_true_second; now auto.
+  Qed.
+
   Lemma bb_opt_false_correct :
   forall u uq p policy,
     sql_query_func uq (bb_policy_map policy p u) = false <->
     andb (sql_query_func (bb_opt_outer policy uq u) (bb_policy_map policy p u))
       (sql_query_func (bb_opt_inner policy uq u) p) = false.
   Proof.
-  Admitted.
+    intros.
+    pose (bb_opt_true_correct u uq p policy).
+    rewrite neg_bool_iff in i.
+    now auto.
+  Qed.
 
   Lemma bb_opt_correct :
     forall u uq p policy,
