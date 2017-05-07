@@ -2075,19 +2075,28 @@ Module HotCRP.
     Proof.
       split; intros; induction b; cbn in *; auto;
       try rewrite negb_true_iff in *;
-      try rewrite negb_false_iff in *; auto.
-    Admitted.
+      try rewrite negb_false_iff in *; auto;
+      [ apply orb_true_iff in H; apply andb_false_iff |
+        apply andb_true_iff in H | apply andb_false_iff in H |
+        apply orb_false_iff in H ]; now firstorder.
+    Qed.
 
     Lemma negate_bexp_correct_false :
       forall b p u, boolean_eval (negate_bexp b) p u = false <->
         boolean_eval b p u = true.
     Proof.
-    Admitted.
+      split; intros; induction b; cbn in *; auto;
+      try rewrite negb_true_iff in *;
+      try rewrite negb_false_iff in *; auto;
+      [ apply orb_false_iff in H |
+        apply andb_false_iff in H | apply andb_true_iff in H |
+        apply orb_true_iff in H; apply andb_false_iff ]; now firstorder.
+    Qed.
 
     Fixpoint gen_bexp_to_bexp (b:gen_boolean_exp) : boolean_exp :=
       match b with
         | Gen_b_true => B_true
-        | Gen_b_false => B_true
+        | Gen_b_false => B_false
         | Gen_paper_field_eq field => Paper_field_eq field
         | Gen_user_field_eq field => User_field_eq field
         | Gen_paper_user_field_eq p_field u_field =>
@@ -2097,6 +2106,18 @@ Module HotCRP.
         | Gen_b_not b1 => negate_bexp (gen_bexp_to_bexp b1)
       end.
 
+    Lemma gen_b_correct :
+      forall b p u, gen_boolean_eval b p u= boolean_eval (gen_bexp_to_bexp b) p u.
+    Proof.
+      intros; induction b; cbn; auto; try rewrite IHb1, IHb2; auto.
+      rewrite IHb;
+      destruct (bool_dec (boolean_eval (gen_bexp_to_bexp b) p u) true).
+      - rewrite e in *; rewrite <- negate_bexp_correct_false in e; rewrite e;
+        cbn; auto.
+      - apply not_true_is_false in n; rewrite n in *;
+        rewrite <- negate_bexp_correct_true in n; rewrite n;
+        cbn; auto.
+    Qed.
   End GeneralizedBooleanExpressions.
 
   (* TODO: Generalized black/white lists? *)
