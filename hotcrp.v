@@ -1253,24 +1253,6 @@ Module HotCRP.
           end
       end.
 
-    (*
-    Fixpoint paper_user_field_eq_to_query (pfield : paper_field) (ufield : user_field) (u : user) :=
-      match u with
-      | User uid uemail uteam =>
-         match pfield, ufield with
-          | Paper_title t, User_email e =>
-            Field_eq (Paper_title uemail)
-          | Paper_title _, _ => Sql_false
-          | _, User_email _ => Sql_false
-          | _, _ => (* case where both are nats *)
-            match ufield with
-            | User_id i => Or (Field_eq (Paper_id uid)) (Or (Field_eq (Paper_team uid)) (Field_eq (Paper_decision uid)))
-            | User_email e => Sql_false (* this case should never get reached *)
-            | User_team t => Or (Field_eq (Paper_id uteam)) (Or (Field_eq (Paper_team uteam)) (Field_eq (Paper_decision uteam)))
-            end
-          end
-      end.
-      *)
     (* Now start writing something that can move the entire query inside. This seems like pain. *)
     Fixpoint bexp_to_query (exp : boolean_exp) (u : user) : user_query :=
       match u with
