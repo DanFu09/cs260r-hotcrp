@@ -2120,7 +2120,131 @@ Module HotCRP.
     Qed.
   End GeneralizedBooleanExpressions.
 
-  (* TODO: Generalized black/white lists? *)
+  Section GeneralizedWhiteList.
+    (* Generalized blacklist *)
+    Inductive gbb_policy : Set :=
+    | GBB_policy: forall (id_exp:gen_boolean_exp) (title_exp:gen_boolean_exp)
+                (team_exp:gen_boolean_exp) (decision_exp:gen_boolean_exp), gbb_policy.
+    Hint Constructors gbb_policy.
+
+    Fixpoint gbb_policy_map (b:gbb_policy) (p:paper) (u:user) : paper :=
+    match b with
+    | GBB_policy id_exp title_exp team_exp decision_exp =>
+      match p with
+      | Paper p_id p_title p_team p_decision =>
+        let id_val := if gen_boolean_eval id_exp p u then 0 else p_id in
+        let title_val := if gen_boolean_eval title_exp p u
+                          then EmptyString else p_title in
+        let team_val := if gen_boolean_eval team_exp p u then 0 else p_team in
+        let decision_val := if gen_boolean_eval decision_exp p u
+                            then 0 else p_decision in
+        Paper id_val title_val team_val decision_val
+      end
+    end.
+
+    Fixpoint gbb_to_bb (gbb:gbb_policy) : bb_policy :=
+    match gbb with
+    | GBB_policy id_exp title_exp team_exp decision_exp =>
+      BB_policy (gen_bexp_to_bexp id_exp) (gen_bexp_to_bexp title_exp)
+        (gen_bexp_to_bexp team_exp) (gen_bexp_to_bexp decision_exp)
+    end.
+
+    Lemma gbb_to_bb_correct :
+    forall gbb p u, gbb_policy_map gbb p u = bb_policy_map (gbb_to_bb gbb) p u.
+    Proof.
+      intros; destruct gbb; unfold gbb_policy_map, gbb_to_bb, bb_policy_map; cbn;
+      repeat rewrite gen_b_correct; auto.
+    Qed.
+
+    (* Generalized white list *)
+    Inductive gw_policy : Set :=
+    | GW_policy: forall (id_exp:gen_boolean_exp) (title_exp:gen_boolean_exp)
+                (team_exp:gen_boolean_exp) (decision_exp:gen_boolean_exp), gw_policy.
+    Hint Constructors gw_policy.
+
+    Fixpoint gw_policy_map (b:gw_policy) (p:paper) (u:user) : paper :=
+    match b with
+    | GW_policy id_exp title_exp team_exp decision_exp =>
+      match p with
+      | Paper p_id p_title p_team p_decision =>
+        let id_val := if gen_boolean_eval id_exp p u then p_id else 0 in
+        let title_val := if gen_boolean_eval title_exp p u
+                          then p_title else EmptyString in
+        let team_val := if gen_boolean_eval team_exp p u then p_team else 0 in
+        let decision_val := if gen_boolean_eval decision_exp p u
+                            then p_decision else 0 in
+        Paper id_val title_val team_val decision_val
+      end
+    end.
+
+    Fixpoint gw_to_gbb (gw:gw_policy) : gbb_policy :=
+    match gw with
+    | GW_policy id_exp title_exp team_exp decision_exp =>
+      GBB_policy (Gen_b_not id_exp) (Gen_b_not title_exp) (Gen_b_not team_exp)
+        (Gen_b_not decision_exp)
+    end.
+
+    Lemma gw_to_gbb_correct :
+    forall gw p u, gw_policy_map gw p u = gbb_policy_map (gw_to_gbb gw) p u.
+    Proof.
+      intros; destruct gw; unfold gw_policy_map, gw_to_gbb, gbb_policy_map; cbn.
+      destruct (bool_dec (gen_boolean_eval id_exp p u) true);
+      destruct (bool_dec (gen_boolean_eval title_exp p u) true);
+      destruct (bool_dec (gen_boolean_eval team_exp p u) true);
+      destruct (bool_dec (gen_boolean_eval decision_exp p u) true);
+      try apply not_true_is_false in n;
+      try apply not_true_is_false in n0;
+      try apply not_true_is_false in n1;
+      try apply not_true_is_false in n2;
+      try rewrite n;
+      try rewrite n0;
+      try rewrite n1;
+      try rewrite n2;
+      try rewrite e;
+      try rewrite e0;
+      try rewrite e1;
+      try rewrite e2; cbn; auto.
+    Qed.
+  End GeneralizedWhiteList.
+
+  Section GeneralizedBlackWhiteListOpts.
+    (* Pair of functions that implements the optimization for generalized black lists *)
+    Fixpoint gbb_opt_outer (policy:gbb_policy) (uq:gen_user_query) (u:user) :
+      (sql_query) := bb_opt_outer_gen_uq (gbb_to_bb policy) uq u.
+    Fixpoint gbb_opt_inner (policy:gbb_policy) (uq:gen_user_query) (u:user) :
+      (sql_query) := bb_opt_inner_gen_uq (gbb_to_bb  policy) uq u.
+
+    Lemma gbb_opt_correct :
+      forall u uq p gbb_policy,
+      gen_sql_query_func uq (gbb_policy_map gbb_policy p u) =
+      andb (sql_query_func (gbb_opt_outer gbb_policy uq u) (gbb_policy_map gbb_policy p u))
+        (sql_query_func (gbb_opt_inner gbb_policy uq u) p).
+    Proof.
+      intros; destruct gbb_policy0.
+      unfold gbb_opt_inner, gbb_opt_outer.
+      rewrite gbb_to_bb_correct.
+      rewrite bb_opt_gen_uq_correct; auto.
+    Qed.
+
+    (* Pair of functions that implements the optimization for white lists *)
+    Fixpoint gw_opt_outer (policy:gw_policy) (uq:gen_user_query) (u:user) :
+      (sql_query) := bb_opt_outer_gen_uq (gbb_to_bb (gw_to_gbb policy)) uq u.
+    Fixpoint gw_opt_inner (policy:gw_policy) (uq:gen_user_query) (u:user) :
+      (sql_query) := bb_opt_inner_gen_uq (gbb_to_bb (gw_to_gbb policy)) uq u.
+
+    Lemma gw_opt_correct :
+      forall u uq p gw_policy,
+      gen_sql_query_func uq (gw_policy_map gw_policy p u) =
+      andb (sql_query_func (gw_opt_outer gw_policy uq u) (gw_policy_map gw_policy p u))
+        (sql_query_func (gw_opt_inner gw_policy uq u) p).
+    Proof.
+      intros; destruct gw_policy0.
+      unfold gw_opt_inner, gw_opt_outer.
+      rewrite gw_to_gbb_correct, gbb_to_bb_correct.
+      rewrite bb_opt_gen_uq_correct; auto.
+    Qed.
+  End GeneralizedBlackWhiteListOpts.
+
   (* TODO: Generalized list membership? *)
 
 End HotCRP.
