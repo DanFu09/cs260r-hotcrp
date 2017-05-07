@@ -1068,85 +1068,91 @@ Module HotCRP.
 
     (* This is proof that our simple opt doesnt eat anything. *)
     Lemma simple_opt_inner_doesnt_lose:
-      forall b uq p db,
-        In p (sql_query_filter uq db) -> In p (sql_query_filter (simple_opt_inner b uq) db).
+      forall b uq p u,
+        sql_query_func uq (bb_policy_map b p u) = true -> sql_query_func (simple_opt_inner b uq) p = true.
     Proof.
       intros.
-      induction uq.
-      unfold sql_query_filter in *.
-      rewrite filter_In in *.
-      simpl in *.
-      destruct b.
-      auto.
-      unfold sql_query_filter in *.
-      rewrite filter_In in *.
-      simpl in *.
-      destruct b.
+      destruct b, p, u.
+      induction uq;
+      simpl in *;
       auto.
       (* Field eq case *)
-      unfold sql_query_filter in *.
-      rewrite filter_In in *.
-      firstorder.
-      simpl in *.
-      destruct b.
-      destruct p0.
+      destruct p;
       simpl in *.
       destruct (Sumbool.sumbool_of_bool (exp_is_false id_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval id_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct id_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false title_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval title_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct title_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false team_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval team_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct team_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false decision_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval decision_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct decision_exp;
+      simpl in *;
+      firstorder.
       (* Field neq case, exact copy of eq_case - todo make smaller *)
-      unfold sql_query_filter in *.
-      rewrite filter_In in *.
-      firstorder.
-      simpl in *.
-      destruct b.
-      destruct p0.
+      destruct p;
       simpl in *.
       destruct (Sumbool.sumbool_of_bool (exp_is_false id_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval id_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct id_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false title_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval title_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct title_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false team_exp));
-      rewrite e;
-      simpl;
-      now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval team_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct team_exp;
+      simpl in *;
+      firstorder.
       destruct (Sumbool.sumbool_of_bool (exp_is_false decision_exp));
-      rewrite e; simpl; now auto.
+      destruct (Sumbool.sumbool_of_bool (boolean_eval decision_exp (Paper id title team decision)
+         (User id0 email team0)));
+      rewrite e in *;
+      rewrite e0 in *;
+      destruct decision_exp;
+      simpl in *;
+      firstorder.
       (* And case *)
-      unfold sql_query_filter in *.
-      destruct b.
-      rewrite filter_In in *.
-      simpl in *.
       rewrite andb_true_iff in *.
       destruct_pairs.
-      firstorder;
-      rewrite filter_In in *; destruct_pairs; now auto.
+      firstorder.
       (* Or case *)
-      unfold sql_query_filter in *.
-      destruct b.
-      rewrite filter_In in *.
-      simpl in *.
       rewrite orb_true_iff in *.
-      destruct_pairs.
-      firstorder;
-      rewrite filter_In in *; destruct_pairs; now auto.
+      firstorder.
     Qed.
 
     Lemma neg_bool_iff:
