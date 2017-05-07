@@ -2245,6 +2245,59 @@ Module HotCRP.
     Qed.
   End GeneralizedBlackWhiteListOpts.
 
-  (* TODO: Generalized list membership? *)
+  (********************************************************)
+  (* General list membership *)
+  (********************************************************)
+  Section GeneralizedListMembership.
+    Fixpoint gbb_policy_scrub policy u db : database :=
+      map (fun p => gbb_policy_map policy p u) db.
+
+    Lemma gbb_opt_list_correct :
+    forall uq u db policy p,
+      In p (sql_query_filter (gbb_opt_outer policy uq u)
+        (gbb_policy_scrub policy u (sql_query_filter (gbb_opt_inner policy uq u) db)
+      )) <->
+      In p (sql_query_filter (gen_to_sql uq) (gbb_policy_scrub policy u db)).
+    Proof.
+      split; intros; destruct policy; unfold sql_query_filter, gbb_policy_scrub in *;
+      apply filter_In in H; apply filter_In; destruct_conjs;
+      apply in_map_iff in H; destruct_conjs;
+      [ apply filter_In in H2; destruct_conjs | ]; split.
+      - apply in_map_iff; exists H; now firstorder.
+      - rewrite <- H1 in *. rewrite gen_to_sql_correct.
+        rewrite gbb_opt_correct; now firstorder.
+      - apply in_map_iff; exists H; split; auto.
+        apply filter_In; split; auto.
+        rewrite gen_to_sql_correct in H0; rewrite <- H1 in H0.
+        rewrite gbb_opt_correct in H0; now firstorder.
+      - rewrite gen_to_sql_correct in H0; rewrite <- H1 in H0.
+        rewrite gbb_opt_correct in H0; now firstorder.
+    Qed.
+
+    Fixpoint gw_policy_scrub policy u db : database :=
+      map (fun p => gw_policy_map policy p u) db.
+
+    Lemma gw_opt_list_correct :
+    forall uq u db policy p,
+      In p (sql_query_filter (gw_opt_outer policy uq u)
+        (gw_policy_scrub policy u (sql_query_filter (gw_opt_inner policy uq u) db)
+      )) <->
+      In p (sql_query_filter (gen_to_sql uq) (gw_policy_scrub policy u db)).
+    Proof.
+      split; intros; destruct policy; unfold sql_query_filter, gw_policy_scrub in *;
+      apply filter_In in H; apply filter_In; destruct_conjs;
+      apply in_map_iff in H; destruct_conjs;
+      [ apply filter_In in H2; destruct_conjs | ]; split.
+      - apply in_map_iff; exists H; now firstorder.
+      - rewrite <- H1 in *. rewrite gen_to_sql_correct.
+        rewrite gw_opt_correct; now firstorder.
+      - apply in_map_iff; exists H; split; auto.
+        apply filter_In; split; auto.
+        rewrite gen_to_sql_correct in H0; rewrite <- H1 in H0.
+        rewrite gw_opt_correct in H0; now firstorder.
+      - rewrite gen_to_sql_correct in H0; rewrite <- H1 in H0.
+        rewrite gw_opt_correct in H0; now firstorder.
+    Qed.
+  End GeneralizedListMembership.
 
 End HotCRP.
